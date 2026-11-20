@@ -1,0 +1,1900 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hệ Thống Tính Toán Thiết Kế Xử Lý Nước Thải Sinh Hoạt (NTSH)</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts: Inter & JetBrains Mono -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    }
+                }
+            }
+        };
+    </script>
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f1f5f9;
+            color: #1e293b;
+        }
+
+        /* Tùy chỉnh thanh cuộn */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #e2e8f0; }
+        ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+
+        input[type="number"] {
+            font-variant-numeric: tabular-nums;
+        }
+
+        /* Ẩn/hiện phần công thức và các bước giải thích trung gian */
+        body.hide-formulas .formula-block {
+            display: none !important;
+        }
+
+        /* Định dạng chuẩn In ấn / Xuất PDF A4 */
+        @media print {
+            @page {
+                size: A4 portrait;
+                margin: 9mm;
+            }
+            body {
+                background-color: #ffffff !important;
+                color: #000000 !important;
+                font-size: 9pt;
+            }
+            .no-print {
+                display: none !important;
+            }
+            .print-only {
+                display: block !important;
+            }
+            .print-container {
+                width: 100% !important;
+                max-width: 100% !important;
+                padding: 0 !important;
+                margin: 0 !important;
+            }
+            .print-card {
+                border: 1px solid #cbd5e1 !important;
+                box-shadow: none !important;
+                break-inside: avoid;
+                margin-bottom: 8px !important;
+            }
+            table {
+                width: 100% !important;
+                border-collapse: collapse !important;
+            }
+            th, td {
+                border: 1px solid #cbd5e1 !important;
+                padding: 3px 5px !important;
+                font-size: 8pt !important;
+            }
+            th {
+                background-color: #f1f5f9 !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+            input, select {
+                border: none !important;
+                background: transparent !important;
+                padding: 0 !important;
+                font-weight: 600 !important;
+                color: #000 !important;
+                appearance: none;
+                -webkit-appearance: none;
+            }
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+    <!-- HEADER CHÍNH -->
+    <header class="bg-slate-900 text-white shadow-lg sticky top-0 z-50 no-print">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex flex-wrap items-center justify-between gap-3">
+            <div class="flex items-center space-x-3">
+                <div class="bg-sky-500 p-2 rounded-lg shadow">
+                    <i class="fa-solid fa-water text-xl text-white"></i>
+                </div>
+                <div>
+                    <h1 class="text-base sm:text-lg font-bold tracking-tight text-white">HỆ THỐNG TÍNH TOÁN THIẾT KẾ XỬ LÝ NƯỚC THẢI SINH HOẠT (NTSH)</h1>
+                    <p class="text-[11px] text-sky-300 font-medium">Chuẩn hóa System Cal. Sheet • Tách khí Sinh học & Khuấy trộn • Check RT tự động • NaOCl khử Coliform</p>
+                </div>
+            </div>
+
+            <div class="flex flex-wrap items-center gap-2">
+                <!-- Nút Ẩn / Hiện cách tính toán -->
+                <button type="button" onclick="toggleFormulas()" id="btn-toggle-formula" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-sky-300 text-xs font-semibold rounded-lg border border-slate-700 transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-eye-slash" id="icon-formula"></i>
+                    <span id="text-formula">Ẩn cách tính toán</span>
+                </button>
+
+                <!-- Nút Nạp dữ liệu mẫu Excel -->
+                <button type="button" onclick="loadExcelDefaults()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-amber-300 text-xs font-semibold rounded-lg border border-slate-700 transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-file-excel"></i>
+                    <span>Nạp dữ liệu mẫu Excel (56 m³/ngày)</span>
+                </button>
+
+                <!-- Nút In / Xuất PDF Thuyết Minh -->
+                <button type="button" onclick="prepareAndPrint()" class="px-3.5 py-1.5 bg-sky-600 hover:bg-sky-500 text-white text-xs font-semibold rounded-lg shadow transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-print"></i>
+                    <span>In / Xuất PDF Thuyết Minh</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- THÔNG TIN DỰ ÁN -->
+    <div class="bg-white border-b border-slate-200 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+            <!-- Header riêng khi In PDF -->
+            <div class="hidden print-only mb-3 border-b-2 border-slate-800 pb-2">
+                <div class="flex justify-between items-end">
+                    <div>
+                        <p class="text-[10px] uppercase tracking-widest text-slate-500 font-bold">THUYẾT MINH TÍNH TOÁN THIẾT KẾ KỸ THUẬT</p>
+                        <h1 class="text-lg font-bold text-slate-900">HỆ THỐNG XỬ LÝ NƯỚC THẢI SINH HOẠT (NTSH)</h1>
+                    </div>
+                    <div class="text-right text-xs text-slate-600">
+                        <p>Ngày lập: <span id="print-date" class="font-semibold"></span></p>
+                        <p>Quy chuẩn áp dụng: <span id="print-std-label" class="font-semibold"></span></p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 text-xs">
+                <div class="flex items-center bg-slate-50 rounded-lg px-3 py-1.5 border border-slate-200">
+                    <i class="fa-solid fa-building text-slate-400 mr-2"></i>
+                    <span class="text-slate-500 whitespace-nowrap mr-1.5 font-medium">Dự án:</span>
+                    <input type="text" id="meta-project" value="Trạm Xử Lý Nước Thải Sinh Hoạt Tập Trung" class="bg-transparent font-semibold text-slate-800 w-full focus:outline-none">
+                </div>
+                <div class="flex items-center bg-slate-50 rounded-lg px-3 py-1.5 border border-slate-200">
+                    <i class="fa-solid fa-user-tie text-slate-400 mr-2"></i>
+                    <span class="text-slate-500 whitespace-nowrap mr-1.5 font-medium">Chủ đầu tư:</span>
+                    <input type="text" id="meta-client" value="Chủ Đầu Tư / Khu Dân Cư / Nhà Máy" class="bg-transparent font-semibold text-slate-800 w-full focus:outline-none">
+                </div>
+                <div class="flex items-center bg-slate-50 rounded-lg px-3 py-1.5 border border-slate-200">
+                    <i class="fa-solid fa-user-gear text-slate-400 mr-2"></i>
+                    <span class="text-slate-500 whitespace-nowrap mr-1.5 font-medium">Kỹ sư:</span>
+                    <input type="text" id="meta-engineer" value="Kỹ Sư Xử Lý Nước & Nước Thải" class="bg-transparent font-semibold text-slate-800 w-full focus:outline-none">
+                </div>
+                <div class="flex items-center bg-slate-50 rounded-lg px-3 py-1.5 border border-slate-200">
+                    <i class="fa-solid fa-calendar-day text-slate-400 mr-2"></i>
+                    <span class="text-slate-500 whitespace-nowrap mr-1.5 font-medium">Ngày lập:</span>
+                    <input type="date" id="meta-date" class="bg-transparent font-semibold text-slate-800 w-full focus:outline-none">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- BỐ CỤC CHÍNH: CỘT TRÁI (INPUTS) & CỘT PHẢI (TÍNH TOÁN & OUTPUTS) -->
+    <div class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 grid grid-cols-1 lg:grid-cols-12 gap-6 print-container">
+
+        <!-- ===================================================================== -->
+        <!-- CỘT TRÁI: THÔNG SỐ ĐẦU VÀO (4 CỘT TRÊN DESKTOP)                        -->
+        <!-- ===================================================================== -->
+        <aside class="lg:col-span-4 space-y-5 no-print">
+            <!-- A.1 CÔNG SUẤT THIẾT KẾ -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="bg-slate-800 text-white px-4 py-2.5 flex items-center justify-between">
+                    <h2 class="text-xs font-bold uppercase tracking-wider flex items-center gap-2">
+                        <i class="fa-solid fa-gauge-high text-sky-400"></i>
+                        A.1 Công suất thiết kế (Capacity)
+                    </h2>
+                </div>
+                <div class="p-4 space-y-2.5 text-xs">
+                    <div class="flex items-center justify-between gap-2">
+                        <label class="text-slate-600 font-medium">Nước thải đầu vào (Raw)</label>
+                        <div class="flex items-center gap-1.5">
+                            <input type="number" id="in-q-raw" value="56" min="0.1" step="1" oninput="recalcAll()" class="w-24 px-2 py-1 text-right border border-slate-300 rounded font-bold text-slate-800 focus:ring-2 focus:ring-sky-500">
+                            <span class="text-slate-500 w-12">m³/ngày</span>
+                        </div>
+                    </div>
+                    <div class="flex items-center justify-between gap-2">
+                        <label class="text-slate-600 font-medium">Nước tách bùn (Dewatering)</label>
+                        <div class="flex items-center gap-1.5">
+                            <input type="number" id="in-q-sludge" value="0" min="0" step="0.5" oninput="recalcAll()" class="w-24 px-2 py-1 text-right border border-slate-300 rounded font-semibold text-slate-700 focus:ring-2 focus:ring-sky-500">
+                            <span class="text-slate-500 w-12">m³/ngày</span>
+                        </div>
+                    </div>
+                    <div class="flex items-center justify-between gap-2 bg-sky-50 p-2 rounded-lg border border-sky-200">
+                        <label class="text-sky-900 font-bold">Tổng lưu lượng (Q_day)</label>
+                        <div class="flex items-center gap-1.5">
+                            <span id="out-q-day" class="w-24 text-right font-bold text-sky-700 text-sm">56.0</span>
+                            <span class="text-sky-700 w-12 font-medium">m³/ngày</span>
+                        </div>
+                    </div>
+
+                    <hr class="border-slate-100">
+
+                    <div class="flex items-center justify-between gap-2">
+                        <label class="text-slate-600 font-medium">Thời gian xả nguồn thải</label>
+                        <div class="flex items-center gap-1.5">
+                            <input type="number" id="in-t-discharge" value="24" min="1" max="24" step="1" oninput="recalcAll()" class="w-24 px-2 py-1 text-right border border-slate-300 rounded font-semibold text-slate-700 focus:ring-2 focus:ring-sky-500">
+                            <span class="text-slate-500 w-12">giờ/ng</span>
+                        </div>
+                    </div>
+                    <div class="flex items-center justify-between gap-2">
+                        <label class="text-slate-500">Lưu lượng xả (Discharge rate)</label>
+                        <div class="flex items-center gap-1.5">
+                            <span id="out-q-discharge" class="w-24 text-right font-semibold text-slate-700">2.33</span>
+                            <span class="text-slate-500 w-12">m³/giờ</span>
+                        </div>
+                    </div>
+
+                    <hr class="border-slate-100">
+
+                    <div class="flex items-center justify-between gap-2">
+                        <label class="text-slate-600 font-medium">Thời gian vận hành trạm (TS)</label>
+                        <div class="flex items-center gap-1.5">
+                            <input type="number" id="in-t-sys" value="24" min="1" max="24" step="1" oninput="recalcAll()" class="w-24 px-2 py-1 text-right border border-slate-300 rounded font-semibold text-slate-700 focus:ring-2 focus:ring-sky-500">
+                            <span class="text-slate-500 w-12">giờ/ng</span>
+                        </div>
+                    </div>
+                    <div class="flex items-center justify-between gap-2">
+                        <label class="text-slate-500">Công suất giờ (Q_day / TS)</label>
+                        <div class="flex items-center gap-1.5">
+                            <span id="out-q-hr-calc" class="w-24 text-right font-semibold text-slate-700">2.33</span>
+                            <span class="text-slate-500 w-12">m³/giờ</span>
+                        </div>
+                    </div>
+                    <div class="flex items-center justify-between gap-2 bg-amber-50 p-2 rounded-lg border border-amber-200">
+                        <label class="text-amber-900 font-bold">Công suất giờ CHỌN (Q_hr)</label>
+                        <div class="flex items-center gap-1.5">
+                            <input type="number" id="in-q-hr-sel" value="2.4" min="0.1" step="0.1" oninput="recalcAll()" class="w-24 px-2 py-1 text-right border border-amber-400 bg-white rounded font-bold text-amber-800 focus:ring-2 focus:ring-amber-500">
+                            <span class="text-amber-800 w-12 font-medium">m³/giờ</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- A.2 TIÊU CHUẨN XẢ THẢI & CHẤT LƯỢNG NƯỚC THẢI -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="bg-slate-800 text-white px-4 py-2.5">
+                    <h2 class="text-xs font-bold uppercase tracking-wider flex items-center gap-2">
+                        <i class="fa-solid fa-flask-vial text-sky-400"></i>
+                        A.2 Quy chuẩn đầu ra & Chất lượng nước
+                    </h2>
+                </div>
+
+                <!-- 5 Tùy chọn Tiêu chuẩn xả thải đầu ra -->
+                <div class="p-3.5 bg-slate-50 border-b border-slate-200 space-y-2 text-xs">
+                    <label for="in-std-select" class="block font-bold text-slate-700">Chọn Tiêu chuẩn xả thải đầu ra (5 tùy chọn):</label>
+                    <select id="in-std-select" onchange="onStandardChange()" class="w-full bg-white text-slate-900 font-semibold text-xs px-3 py-2 rounded-lg border border-sky-400 focus:ring-2 focus:ring-sky-500">
+                        <option value="qcvn14_a">1. QCVN 14:2025/BTNMT - Cột A (NTSH)</option>
+                        <option value="qcvn14_b" selected>2. QCVN 14:2025/BTNMT - Cột B (NTSH)</option>
+                        <option value="qcvn40_a">3. QCVN 40:2025/BTNMT - Cột A (NTSX)</option>
+                        <option value="qcvn40_b">4. QCVN 40:2025/BTNMT - Cột B (NTSX)</option>
+                        <option value="custom">5. TỰ NHẬP ĐẦU RA (Mở khóa nhập quy chuẩn)</option>
+                    </select>
+                    <p id="std-mode-hint" class="text-[11px] text-sky-700 font-medium">
+                        Đang áp dụng QCVN 14:2025/BTNMT - Cột B. Chọn "TỰ NHẬP ĐẦU RA" để tự nhập giá trị quy chuẩn.
+                    </p>
+                </div>
+
+                <!-- Lời nhắc kinh nghiệm thông số đầu vào NTSH -->
+                <div class="p-3 bg-amber-50/90 border-b border-amber-200 text-[11px] space-y-1.5">
+                    <div class="font-bold text-amber-900 flex items-center justify-between">
+                        <span><i class="fa-solid fa-triangle-exclamation text-amber-600 mr-1"></i>Gợi ý kinh nghiệm đầu vào NTSH:</span>
+                        <button type="button" onclick="fillTypicalDomestic()" class="px-2 py-0.5 bg-amber-600 hover:bg-amber-700 text-white rounded font-semibold text-[10px] transition">
+                            Điền mức điển hình
+                        </button>
+                    </div>
+                    <p class="text-amber-950 leading-relaxed">
+                        <strong>BOD₅ &lt; 280 mg/L</strong> • <strong>TSS &lt; 300 mg/L</strong> • <strong>Tổng N &lt; 90 mg/L</strong> • <strong>Amonia &lt; 75 mg/L</strong> • <strong>Tổng P &lt; 16 mg/L</strong>
+                    </p>
+                </div>
+
+                <!-- Bảng chỉ tiêu chất lượng nước -->
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse text-[11px]">
+                        <thead>
+                            <tr class="bg-slate-100 text-slate-700 border-b border-slate-200">
+                                <th class="py-2 px-2 font-semibold">Chỉ tiêu</th>
+                                <th class="py-2 px-1.5 font-semibold text-right bg-amber-50/60">Đầu vào</th>
+                                <th class="py-2 px-1.5 font-semibold text-right bg-sky-50/60">Quy chuẩn</th>
+                                <th class="py-2 px-1.5 font-semibold text-right bg-emerald-50/60">Đầu ra TK</th>
+                                <th class="py-2 px-1.5 font-semibold text-right">Hiệu suất</th>
+                            </tr>
+                        </thead>
+                        <tbody id="water-quality-tbody" class="divide-y divide-slate-200">
+                            <!-- Render bằng JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </aside>
+
+        <!-- ===================================================================== -->
+        <!-- CỘT PHẢI: KẾT QUẢ TÍNH TOÁN, THIẾT BỊ & KÍCH THƯỚC BỂ (8 CỘT)          -->
+        <!-- ===================================================================== -->
+        <main class="lg:col-span-8 space-y-6">
+
+            <!-- BẢN IN TÓM TẮT THÔNG SỐ ĐẦU VÀO KHI XUẤT PDF -->
+            <div class="hidden print-only bg-white rounded-xl border border-slate-300 p-3 text-xs print-card">
+                <h2 class="font-bold text-slate-900 mb-1.5 uppercase">I. TÓM TẮT THÔNG SỐ ĐẦU VÀO & CHẤT LƯỢNG NƯỚC</h2>
+                <div class="grid grid-cols-3 gap-2 text-[11px]" id="print-input-summary"></div>
+            </div>
+
+            <!-- 4 THẺ KPI TỔNG QUAN -->
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div class="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm print-card">
+                    <p class="text-[11px] text-slate-500 font-medium">Tổng lưu lượng xử lý</p>
+                    <p class="text-xl font-bold text-sky-700 mt-1"><span id="kpi-q-day">56.0</span> <span class="text-xs font-normal text-slate-500">m³/ngày</span></p>
+                    <p class="text-[11px] text-slate-400 mt-0.5">Q_hr chọn: <strong id="kpi-q-hr" class="text-slate-600">2.4</strong> m³/h</p>
+                </div>
+
+                <div class="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm print-card">
+                    <p class="text-[11px] text-slate-500 font-medium">Bể Thiếu khí / Hiếu khí</p>
+                    <p class="text-lg font-bold text-slate-800 mt-1"><span id="kpi-anoxic-oxic">19.0 / 26.0</span> <span class="text-xs font-normal text-slate-500">m³</span></p>
+                    <p class="text-[11px] text-slate-400 mt-0.5">Tổng các bể: <strong id="kpi-total-vol" class="text-sky-700">90.0</strong> m³</p>
+                </div>
+
+                <div class="bg-white p-3.5 rounded-xl border border-sky-200 shadow-sm print-card">
+                    <p class="text-[11px] text-sky-700 font-medium">Khí sinh học / Khuấy trộn</p>
+                    <p class="text-lg font-bold text-sky-800 mt-1"><span id="kpi-air-both">1.22 / 0.45</span> <span class="text-xs font-normal text-slate-500">m³/p</span></p>
+                    <p class="text-[11px] text-slate-500 mt-0.5">Tách 2 máy thổi khí riêng</p>
+                </div>
+
+                <div class="bg-white p-3.5 rounded-xl border border-emerald-200 shadow-sm print-card">
+                    <p class="text-[11px] text-emerald-800 font-medium">Hóa chất (kg/ngày)</p>
+                    <p class="text-xs font-bold text-slate-800 mt-1 leading-snug">
+                        MeOH: <span id="kpi-chem-me" class="text-sky-700">3.7</span> • NaOH: <span id="kpi-chem-na" class="text-amber-700">13.1</span><br>
+                        PAC: <span id="kpi-chem-pac" class="text-indigo-700">0.9</span> • NaOCl: <span id="kpi-chem-naocl" class="text-emerald-700">0.28</span>
+                    </p>
+                </div>
+            </div>
+
+            <!-- ================================================================= -->
+            <!-- CÁC PHẦN TÍNH TOÁN CHI TIẾT TỪNG CỤM CÔNG TRÌNH                  -->
+            <!-- ================================================================= -->
+            <div class="space-y-4">
+                <div class="flex items-center justify-between border-b-2 border-sky-600 pb-1">
+                    <h2 class="text-sm sm:text-base font-bold text-slate-800">TÍNH TOÁN CHI TIẾT CÁC CỤM CÔNG TRÌNH & CHECK RT TỪNG BỂ</h2>
+                    <span class="text-[11px] text-slate-500 no-print">Ô viền màu là giá trị có thể chỉnh tay</span>
+                </div>
+
+                <!-- 1. BỂ GOM (SUMPIT) -->
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden print-card">
+                    <div class="bg-slate-100 px-4 py-2 border-b border-slate-200 flex justify-between items-center">
+                        <h3 class="text-xs sm:text-sm font-bold text-slate-800">1. Bể gom nước thải (Sumpit)</h3>
+                        <span class="text-xs font-bold text-sky-700 bg-sky-100 px-2 py-0.5 rounded">V chọn = <span id="m1-v-badge">2.0</span> m³</span>
+                    </div>
+                    <div class="p-4 space-y-2.5 text-xs">
+                        <div class="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                            <div class="bg-slate-50 p-2 rounded flex justify-between items-center">
+                                <span class="text-slate-600">Hệ số đỉnh (Peak):</span>
+                                <input type="number" id="m1-peak" value="2.0" min="1" max="5" step="0.1" oninput="recalcAll()" class="w-16 px-1.5 py-0.5 text-right border border-slate-300 rounded bg-white font-semibold">
+                            </div>
+                            <div class="bg-slate-50 p-2 rounded flex justify-between items-center">
+                                <span class="text-slate-600">Thời gian lưu (15-30p):</span>
+                                <input type="number" id="m1-dt" value="20" min="5" max="60" step="1" oninput="recalcAll()" class="w-16 px-1.5 py-0.5 text-right border border-slate-300 rounded bg-white font-semibold">
+                            </div>
+                            <div class="bg-slate-50 p-2 rounded flex justify-between items-center col-span-2 sm:col-span-1">
+                                <span class="text-slate-600">V tính toán:</span>
+                                <strong id="m1-v-calc" class="text-slate-800">1.60 m³</strong>
+                            </div>
+                        </div>
+                        <div class="flex flex-wrap justify-between items-center gap-2 pt-1 border-t border-slate-100">
+                            <div>
+                                <span class="text-slate-600">Bơm gom yêu cầu: <strong id="m1-q-pump-req" class="text-slate-800">4.80 m³/h</strong></span>
+                                <span class="text-slate-400 mx-1">|</span>
+                                <span class="text-slate-600">Bơm gom CHỌN:</span>
+                                <input type="number" id="m1-q-pump-sel" value="5.0" min="0.5" step="0.5" oninput="recalcAll()" class="w-16 px-1.5 py-0.5 text-right border border-emerald-400 rounded font-bold text-emerald-700"> m³/h
+                            </div>
+                            <div class="flex items-center gap-1.5">
+                                <span class="text-slate-700 font-semibold">Thể tích bể gom CHỌN:</span>
+                                <input type="number" id="m1-v-sel" value="2.0" min="0.5" step="0.5" oninput="recalcAll()" class="w-20 px-2 py-0.5 text-right border border-sky-400 rounded font-bold text-sky-700"> m³
+                            </div>
+                        </div>
+                        <div id="rt-check-sumpit" class="rounded-lg border px-3 py-2 flex flex-wrap justify-between items-center gap-2 text-xs"></div>
+                        <div class="formula-block bg-slate-50 border border-slate-200 rounded p-2 text-[11px] font-mono text-slate-600">
+                            • V_yêu_cầu = Q_hr × Peak × (DT / 60) ; Q_bơm_yêu_cầu = Q_hr × Peak ; RT_đỉnh = (V_chọn / (Q_hr × Peak)) × 60 (Chuẩn: 15 – 30 phút)
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. BỂ ĐIỀU HÒA (EQUALIZATION TANK) -->
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden print-card">
+                    <div class="bg-slate-100 px-4 py-2 border-b border-slate-200 flex justify-between items-center">
+                        <h3 class="text-xs sm:text-sm font-bold text-slate-800">2. Bể điều hòa (Equalization Tank)</h3>
+                        <span class="text-xs font-bold text-sky-700 bg-sky-100 px-2 py-0.5 rounded">V chọn = <span id="m2-v-badge">15.5</span> m³</span>
+                    </div>
+                    <div class="p-4 space-y-2.5 text-xs">
+                        <div class="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                            <div class="bg-slate-50 p-2 rounded flex justify-between items-center">
+                                <span class="text-slate-600">Hệ số an toàn (SF):</span>
+                                <input type="number" id="m2-sf" value="1.1" min="1" max="2" step="0.05" oninput="recalcAll()" class="w-16 px-1.5 py-0.5 text-right border border-slate-300 rounded bg-white font-semibold">
+                            </div>
+                            <div class="bg-slate-50 p-2 rounded flex justify-between items-center">
+                                <span class="text-slate-600">HRT đệm thực tế (giờ):</span>
+                                <input type="number" id="m2-rt-buf" value="6.0" min="1" max="24" step="0.5" oninput="recalcAll()" class="w-16 px-1.5 py-0.5 text-right border border-slate-300 rounded bg-white font-semibold">
+                            </div>
+                            <div class="bg-slate-50 p-2 rounded flex justify-between items-center col-span-2 sm:col-span-1">
+                                <span class="text-slate-600">Lượng xử lý trong T_xả:</span>
+                                <strong id="m2-v-treated" class="text-slate-800">57.60 m³</strong>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 border-t border-slate-100">
+                            <div>
+                                <span class="text-slate-600">Chênh lệch (Q_day - Q_hr × T_xả):</span>
+                                <strong id="m2-v-rem" class="text-slate-800">-1.60 m³</strong>
+                                <span class="text-[11px] text-slate-500"> (V_tính = <span id="m2-v-calc">-1.76</span> m³; Đệm HRT: <strong id="m2-v-buf">15.84</strong> m³)</span>
+                            </div>
+                            <div class="flex items-center justify-start sm:justify-end gap-1.5">
+                                <span class="text-slate-700 font-semibold">Thể tích bể điều hòa CHỌN:</span>
+                                <input type="number" id="m2-v-sel" value="15.5" min="1" step="0.5" oninput="recalcAll()" class="w-20 px-2 py-0.5 text-right border border-sky-400 rounded font-bold text-sky-700"> m³
+                            </div>
+                        </div>
+
+                        <div id="rt-check-eq" class="rounded-lg border px-3 py-2 flex flex-wrap justify-between items-center gap-2 text-xs"></div>
+
+                        <div class="formula-block bg-slate-50 border border-slate-200 rounded p-2 text-[11px] font-mono text-slate-600">
+                            • Lượng_đã_xử_lý = Q_hr × T_xả ; Phần_dư = Q_day - Lượng_đã_xử_lý ; V_tính = Phần_dư × SF ; RT_thực = V_eq_sel / Q_hr (Chuẩn: 6 – 12 giờ)<br>
+                            • Khi xả đều 24/24h (Phần_dư ≤ 0), thực tế vẫn cần bể đệm điều hòa lưu lượng/nồng độ theo HRT đệm (Q_hr × HRT_đệm × SF) hoặc nhập trực tiếp V_eq_sel.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3. BỂ THIẾU KHÍ (ANOXIC TANK) -->
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden print-card">
+                    <div class="bg-slate-100 px-4 py-2 border-b border-slate-200 flex justify-between items-center">
+                        <h3 class="text-xs sm:text-sm font-bold text-slate-800">3. Bể thiếu khí khử Nitrat (Anoxic Tank)</h3>
+                        <span class="text-xs font-bold text-sky-700 bg-sky-100 px-2 py-0.5 rounded">V chọn = <span id="m3-v-badge">19.0</span> m³</span>
+                    </div>
+                    <div class="p-4 space-y-2.5 text-xs">
+                        <div class="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                            <div class="bg-slate-50 p-1.5 rounded">
+                                <label class="block text-[10px] text-slate-500">Tỷ lệ R</label>
+                                <input type="number" id="m3-r" value="1.0" min="0.2" max="4" step="0.1" oninput="recalcAll()" class="w-full mt-0.5 px-1.5 py-0.5 text-right border border-slate-300 rounded bg-white font-semibold">
+                            </div>
+                            <div class="bg-slate-50 p-1.5 rounded">
+                                <label class="block text-[10px] text-slate-500">KD15 (1/ng)</label>
+                                <input type="number" id="m3-kd15" value="0.025" min="0.005" max="0.1" step="0.005" oninput="recalcAll()" class="w-full mt-0.5 px-1.5 py-0.5 text-right border border-slate-300 rounded bg-white font-semibold">
+                            </div>
+                            <div class="bg-slate-50 p-1.5 rounded">
+                                <label class="block text-[10px] text-slate-500">STAN</label>
+                                <input type="number" id="m3-stan" value="1.07" min="1.01" max="1.2" step="0.01" oninput="recalcAll()" class="w-full mt-0.5 px-1.5 py-0.5 text-right border border-slate-300 rounded bg-white font-semibold">
+                            </div>
+                            <div class="bg-slate-50 p-1.5 rounded">
+                                <label class="block text-[10px] text-slate-500">T_anox (°C)</label>
+                                <input type="number" id="m3-temp" value="31" min="10" max="45" step="1" oninput="recalcAll()" class="w-full mt-0.5 px-1.5 py-0.5 text-right border border-slate-300 rounded bg-white font-semibold">
+                            </div>
+                            <div class="bg-slate-50 p-1.5 rounded">
+                                <label class="block text-[10px] text-slate-500">MLVSS (mg/L)</label>
+                                <input type="number" id="m3-mlvss" value="2500" min="1000" max="6000" step="100" oninput="recalcAll()" class="w-full mt-0.5 px-1.5 py-0.5 text-right border border-slate-300 rounded bg-white font-semibold">
+                            </div>
+                            <div class="bg-slate-50 p-1.5 rounded">
+                                <label class="block text-[10px] text-slate-500">Hệ số SF</label>
+                                <input type="number" id="m3-sf" value="1.1" min="1.0" max="1.5" step="0.05" oninput="recalcAll()" class="w-full mt-0.5 px-1.5 py-0.5 text-right border border-slate-300 rounded bg-white font-semibold">
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-1.5 pt-1 border-t border-slate-100">
+                            <div><span class="text-slate-500">Hiệu suất H:</span> <strong id="m3-h">0.625</strong></div>
+                            <div><span class="text-slate-500">Rn (ROUND):</span> <strong id="m3-rn">0.70</strong> → <strong id="m3-rn-sel" class="text-sky-700">0.7</strong></div>
+                            <div><span class="text-slate-500">KDT (ROUNDUP):</span> <strong id="m3-kdt">0.074</strong></div>
+                            <div><span class="text-slate-500">VD1 tính toán:</span> <strong id="m3-vd1">17.13 m³</strong></div>
+                            <div><span class="text-slate-500">RT danh nghĩa:</span> <strong id="m3-rt">7.92 giờ</strong></div>
+                            <div><span class="text-slate-500">Methanol CMT:</span> <strong id="m3-cmt" class="text-amber-700">3.7 kg/ngày</strong></div>
+                        </div>
+
+                        <div class="flex flex-wrap justify-between items-center gap-2 pt-1.5 border-t border-slate-100">
+                            <span class="text-slate-600">Tuần hoàn nội bộ (Rn_sel × Q_hr): <strong id="m3-q-ir" class="text-sky-800">1.68 m³/h</strong></span>
+                            <div class="flex items-center gap-1.5">
+                                <span class="text-slate-700 font-semibold">Thể tích bể Anoxic CHỌN (VD1_sel):</span>
+                                <input type="number" id="m3-v-sel" value="19" min="1" step="0.5" oninput="recalcAll()" class="w-20 px-2 py-0.5 text-right border border-sky-400 rounded font-bold text-sky-700"> m³
+                            </div>
+                        </div>
+
+                        <div id="rt-check-anoxic" class="rounded-lg border px-3 py-2 flex flex-wrap justify-between items-center gap-2 text-xs"></div>
+
+                        <div class="formula-block bg-slate-50 border border-slate-200 rounded p-2 text-[11px] font-mono text-slate-600">
+                            • H = (TNI - TNO) / TNI ; Rn = ROUND((H + (H - 1)×R)/(1 - H), 2) ; Rn_sel = ROUNDUP(Rn, 1)<br>
+                            • KDT = ROUNDUP(KD15 × STAN^(T_anox - 15), 3) ; VD1 = [(TNI×Q_day×10×H)/(KDT×MLVSS×10)] + [((1+R+Rn_sel)×Q_day×15)/(TS×60)]<br>
+                            • VD1_sel = ROUNDUP(VD1 × SF, 0) ; CMT = ROUNDUP(((3×TNI - BODI×0.7)×Q_day/1000), 1) ; RT_anox = VD1_sel / Q_hr (Chuẩn: 6 – 10 giờ)
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 4. BỂ HIẾU KHÍ (OXIC TANK) -->
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden print-card">
+                    <div class="bg-slate-100 px-4 py-2 border-b border-slate-200 flex justify-between items-center">
+                        <h3 class="text-xs sm:text-sm font-bold text-slate-800">4. Bể hiếu khí (Oxic Tank — Nitrat hóa & Tuổi bùn SRT)</h3>
+                        <span class="text-xs font-bold text-sky-700 bg-sky-100 px-2 py-0.5 rounded">V chọn = <span id="m4-v-badge">26.0</span> m³</span>
+                    </div>
+                    <div class="p-4 space-y-2.5 text-xs">
+                        <div class="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                            <div class="bg-slate-50 p-1.5 rounded">
+                                <label class="block text-[10px] text-slate-500">KN15 (1/ng)</label>
+                                <input type="number" id="m4-kn15" value="0.018" min="0.005" max="0.1" step="0.002" oninput="recalcAll()" class="w-full mt-0.5 px-1.5 py-0.5 text-right border border-slate-300 rounded bg-white font-semibold">
+                            </div>
+                            <div class="bg-slate-50 p-1.5 rounded">
+                                <label class="block text-[10px] text-slate-500">STAN_ox</label>
+                                <input type="number" id="m4-stan" value="1.09" min="1.01" max="1.2" step="0.01" oninput="recalcAll()" class="w-full mt-0.5 px-1.5 py-0.5 text-right border border-slate-300 rounded bg-white font-semibold">
+                            </div>
+                            <div class="bg-slate-50 p-1.5 rounded">
+                                <label class="block text-[10px] text-slate-500">T_ox (°C)</label>
+                                <input type="number" id="m4-temp" value="32" min="10" max="45" step="1" oninput="recalcAll()" class="w-full mt-0.5 px-1.5 py-0.5 text-right border border-slate-300 rounded bg-white font-semibold">
+                            </div>
+                            <div class="bg-slate-50 p-1.5 rounded">
+                                <label class="block text-[10px] text-slate-500">SRT (ngày)</label>
+                                <input type="number" id="m4-srt" value="8" min="3" max="30" step="1" oninput="recalcAll()" class="w-full mt-0.5 px-1.5 py-0.5 text-right border border-slate-300 rounded bg-white font-semibold">
+                            </div>
+                            <div class="bg-slate-50 p-1.5 rounded">
+                                <label class="block text-[10px] text-slate-500">Hệ số A</label>
+                                <input type="number" id="m4-a" value="0.5" min="0.2" max="0.8" step="0.05" oninput="recalcAll()" class="w-full mt-0.5 px-1.5 py-0.5 text-right border border-slate-300 rounded bg-white font-semibold">
+                            </div>
+                            <div class="bg-slate-50 p-1.5 rounded">
+                                <label class="block text-[10px] text-slate-500">Hệ số SF</label>
+                                <input type="number" id="m4-sf" value="1.05" min="1.0" max="1.5" step="0.05" oninput="recalcAll()" class="w-full mt-0.5 px-1.5 py-0.5 text-right border border-slate-300 rounded bg-white font-semibold">
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-1.5 pt-1 border-t border-slate-100">
+                            <div><span class="text-slate-500">KNT:</span> <strong id="m4-knt">0.078</strong></div>
+                            <div><span class="text-slate-500">VN1 / VN1_sel:</span> <strong id="m4-vn1">22.98 → 25 m³</strong></div>
+                            <div><span class="text-slate-500">Hệ số B (T_b=<span id="m4-tb-lbl">31</span>°C):</span> <strong id="m4-b">0.079</strong></div>
+                            <div><span class="text-slate-500">W1 / W2 / W3:</span> <strong id="m4-w123">7.0 / 11.1 / 11.8</strong></div>
+                            <div><span class="text-slate-500">VN2 / VN2_sel:</span> <strong id="m4-vn2">24.64 → 25.9 m³</strong></div>
+                            <div><span class="text-slate-500">RT danh nghĩa:</span> <strong id="m4-rt">10.83 giờ</strong></div>
+                        </div>
+
+                        <div class="flex flex-wrap justify-between items-center gap-2 pt-1.5 border-t border-slate-100">
+                            <span class="text-slate-600">MAX(VN1_sel, VN2_sel): <strong id="m4-max-vn" class="text-slate-800">25.9 m³</strong></span>
+                            <div class="flex items-center gap-1.5">
+                                <span class="text-slate-700 font-semibold">Thể tích bể Oxic CHỌN (VN_sel):</span>
+                                <input type="number" id="m4-v-sel" value="26" min="1" step="0.5" oninput="recalcAll()" class="w-20 px-2 py-0.5 text-right border border-sky-400 rounded font-bold text-sky-700"> m³
+                            </div>
+                        </div>
+
+                        <div id="rt-check-oxic" class="rounded-lg border px-3 py-2 flex flex-wrap justify-between items-center gap-2 text-xs"></div>
+
+                        <div class="formula-block bg-slate-50 border border-slate-200 rounded p-2 text-[11px] font-mono text-slate-600">
+                            • 4.1 Nitrat hóa: KNT = ROUNDUP(KN15 × STAN_ox^(T_ox - 15), 3) ; VN1 = ROUNDUP((TKN×Q_day×1e-3)/(KNT×MLVSS×1e-3), 2) ; VN1_sel = ROUNDUP(VN1×SF, 0)<br>
+                            • 4.2 Tuổi bùn: B = ROUNDUP(0.05 × 1.042^(T_b - 20), 3) ; W1 = A×BODI×Q_day/1000 ; W2 = B×MLVSS×Q_day/1000 ; W3 = 0.15×CMT + SSI×Q_day/1000<br>
+                            • VN2 = ROUNDUP(((W1 - W2 + W3)×SRT×1000/MLVSS), 2) ; VN2_sel = ROUNDUP(VN2×SF, 1) ; VN_sel = MAX(VN1_sel, VN2_sel) ; RT_oxic = VN_sel / Q_hr (Chuẩn: 7 – 12 giờ)
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 5. TÁCH RIÊNG CẤP KHÍ SINH HỌC & CẤP KHÍ KHUẤY TRỘN + BÙ KIỀM NAOH -->
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden print-card">
+                    <div class="bg-slate-100 px-4 py-2 border-b border-slate-200 flex flex-wrap justify-between items-center gap-2">
+                        <h3 class="text-xs sm:text-sm font-bold text-slate-800">5. Tách riêng Cấp khí sinh học & Cấp khí khuấy trộn + Bù kiềm NaOH</h3>
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs font-bold text-sky-700 bg-sky-100 px-2 py-0.5 rounded">Khí SH: <span id="m5-bio-badge">1.22</span> m³/p</span>
+                            <span class="text-xs font-bold text-indigo-700 bg-indigo-100 px-2 py-0.5 rounded">Khí trộn: <span id="m5-mix-badge">0.47</span> m³/p</span>
+                        </div>
+                    </div>
+                    <div class="p-4 grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                        <!-- Blower 1: Khí sinh học + Đĩa khí SSI -->
+                        <div class="space-y-2 border-b md:border-b-0 md:border-r border-slate-200 pb-3 md:pb-0 md:pr-4">
+                            <div class="flex items-center justify-between">
+                                <span class="font-bold text-sky-900 uppercase text-[11px]">A. Máy thổi khí sinh học (Bể Oxic)</span>
+                                <label class="flex items-center gap-1 text-[11px] text-slate-600 cursor-pointer">
+                                    <input type="checkbox" id="m5-scum" checked onchange="recalcAll()" class="rounded border-slate-300 text-sky-600">
+                                    <span>+ Thu váng (10% QAS)</span>
+                                </label>
+                            </div>
+                            <div class="grid grid-cols-3 gap-2">
+                                <div class="bg-slate-50 p-1.5 rounded">
+                                    <label class="block text-[10px] text-slate-500">H_ox (m)</label>
+                                    <input type="number" id="m5-hox" value="3.0" min="1.5" max="6" step="0.1" oninput="recalcAll()" class="w-full mt-0.5 px-1.5 py-0.5 text-right border border-slate-300 rounded bg-white font-semibold">
+                                </div>
+                                <div class="bg-slate-50 p-1.5 rounded">
+                                    <label class="block text-[10px] text-slate-500">SF_bio</label>
+                                    <input type="number" id="m5-sf-bio" value="1.1" min="1.0" max="1.5" step="0.05" oninput="recalcAll()" class="w-full mt-0.5 px-1.5 py-0.5 text-right border border-slate-300 rounded bg-white font-semibold">
+                                </div>
+                                <div class="bg-slate-50 p-1.5 rounded">
+                                    <label class="block text-[10px] text-slate-500">Đĩa (L/p/đĩa)</label>
+                                    <input type="number" id="m5-disc-cap" value="80" min="30" max="200" step="5" oninput="recalcAll()" class="w-full mt-0.5 px-1.5 py-0.5 text-right border border-slate-300 rounded bg-white font-semibold">
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-3 gap-1.5 text-[11px] bg-slate-50 p-2 rounded">
+                                <div>W4: <strong id="m5-w4">-1.05</strong></div>
+                                <div>W5: <strong id="m5-w5">5.24</strong></div>
+                                <div>W6: <strong id="m5-w6">20.47</strong> kgO₂/ng</div>
+                            </div>
+                            <div class="flex justify-between items-center bg-sky-50 p-2 rounded border border-sky-200">
+                                <div>
+                                    <span class="text-[10px] text-sky-700 block">QAS = <span id="m5-qas">1.02</span> m³/p • Yêu cầu: <strong id="m5-qbio-req">1.22</strong> m³/p</span>
+                                    <span class="text-[11px] font-bold text-sky-900">Blower SH chọn: <span id="m5-blower-bio">1.3</span> m³/p</span>
+                                </div>
+                                <div class="text-right">
+                                    <span class="text-[10px] text-slate-600 block">Đĩa cần: <strong id="m5-disc-req">16</strong> | Chọn:
+                                        <input type="number" id="m5-disc-sel" value="20" min="2" step="1" oninput="recalcAll()" class="w-12 px-1 py-0.5 text-right border border-sky-400 rounded bg-white font-bold text-sky-700">
+                                    </span>
+                                    <span class="text-[10px] text-emerald-700 font-semibold">Thực tế: <strong id="m5-disc-actual">61.2</strong> L/p/đĩa</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Blower 2: Khí khuấy trộn + Bù kiềm NaOH -->
+                        <div class="space-y-2">
+                            <span class="font-bold text-indigo-900 uppercase text-[11px] block">B. Máy thổi khí khuấy trộn & Bù kiềm NaOH</span>
+                            <div class="grid grid-cols-3 gap-2">
+                                <div class="bg-slate-50 p-1.5 rounded">
+                                    <label class="block text-[10px] text-slate-500">Hệ số trộn</label>
+                                    <input type="number" id="m5-kmix" value="0.015" min="0.005" max="0.05" step="0.002" oninput="recalcAll()" class="w-full mt-0.5 px-1.5 py-0.5 text-right border border-slate-300 rounded bg-white font-semibold">
+                                </div>
+                                <div class="bg-slate-50 p-1.5 rounded">
+                                    <label class="block text-[10px] text-slate-500">SF_mix</label>
+                                    <input type="number" id="m5-sf-mix" value="1.1" min="1.0" max="1.5" step="0.05" oninput="recalcAll()" class="w-full mt-0.5 px-1.5 py-0.5 text-right border border-slate-300 rounded bg-white font-semibold">
+                                </div>
+                                <div class="bg-slate-50 p-1.5 rounded">
+                                    <label class="block text-[10px] text-slate-500">Air_mix gốc</label>
+                                    <div class="mt-0.5 py-0.5 text-right font-bold text-slate-700"><span id="m5-qmix-base">0.43</span> m³/p</div>
+                                </div>
+                            </div>
+                            <div class="flex justify-between items-center bg-indigo-50 p-2 rounded border border-indigo-200">
+                                <div>
+                                    <span class="text-[10px] text-indigo-700 block">0.015×(V_EQ+V_dis+V_sludge)×SF_mix</span>
+                                    <strong id="m5-qmix-req" class="text-xs text-indigo-900">0.47 m³/phút</strong>
+                                </div>
+                                <div class="text-right">
+                                    <span class="text-[10px] text-indigo-700 block">Blower trộn chọn</span>
+                                    <strong class="text-xs font-bold text-indigo-800"><span id="m5-blower-mix">0.5</span> m³/phút</strong>
+                                </div>
+                            </div>
+                            <div class="flex justify-between items-center bg-amber-50 p-2 rounded border border-amber-200">
+                                <span class="text-amber-900 font-semibold">NaOH 100% bù kiềm (NaDN):</span>
+                                <strong id="m5-naoh" class="text-sm text-amber-800">13.1 kg/ngày</strong>
+                            </div>
+                        </div>
+
+                        <div class="md:col-span-2 formula-block bg-slate-50 border border-slate-200 rounded p-2 text-[11px] font-mono text-slate-600">
+                            • YTAH = (2.35×H_ox - 0.15)/100 ; QAS = ROUNDUP(((W4+W5+W6)×1.15)/(0.28×YTAH×TS×60), 2)<br>
+                            • Khí sinh học riêng: Q_bio_req = QAS×SF_bio (+ 0.1×QAS nếu thu váng) ; Khí khuấy trộn riêng: Air_mix = 0.015×(V_eq_sel + V_dis_sel + V_sludge_sel) ; Q_mix_req = Air_mix×SF_mix<br>
+                            • NaDN = ROUNDUP(((((0.8×(TNI-10)×7.14) - (TNI×3.57)/(1 + Rn_sel/100))×Q_day×1e-3)×40/50), 1)
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 6. BỂ LẮNG & 7. BỂ KHỬ TRÙNG -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- 6. Bể lắng -->
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden print-card">
+                        <div class="bg-slate-100 px-4 py-2 border-b border-slate-200 flex justify-between items-center">
+                            <h3 class="text-xs sm:text-sm font-bold text-slate-800">6. Bể lắng sinh học</h3>
+                            <span class="text-xs font-bold text-sky-700 bg-sky-100 px-2 py-0.5 rounded">V chọn = <span id="m6-sed-badge">7.3</span> m³</span>
+                        </div>
+                        <div class="p-4 space-y-2 text-xs">
+                            <div class="grid grid-cols-2 gap-2">
+                                <div class="bg-slate-50 p-1.5 rounded flex justify-between items-center">
+                                    <span class="text-slate-600">Tải bề mặt LV:</span>
+                                    <div>
+                                        <input type="number" id="m6-lv" value="0.5" min="0.2" max="1.5" step="0.05" oninput="recalcAll()" class="w-14 px-1 py-0.5 text-right border border-slate-300 rounded bg-white font-semibold"> m/h
+                                    </div>
+                                </div>
+                                <div class="bg-slate-50 p-1.5 rounded flex justify-between items-center">
+                                    <span class="text-slate-600">H_hd vùng lắng:</span>
+                                    <div>
+                                        <input type="number" id="m6-hsed" value="1.5" min="1.0" max="5.0" step="0.1" oninput="onSedHeightInput(this.value)" class="w-14 px-1 py-0.5 text-right border border-amber-400 rounded bg-white font-semibold text-amber-900"> m
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-slate-500">Diện tích F cần / Cạnh √F:</span>
+                                <strong><span id="m6-sed-area">4.80 m²</span> / <span id="m6-sed-side">2.19 m</span></strong>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-slate-600">Cạnh bể vuông CHỌN (D = B):</span>
+                                <div>
+                                    <input type="number" id="m6-sed-dim" value="2.2" min="0.5" max="20" step="0.1" oninput="onSedDimInput(this.value)" class="w-16 px-1.5 py-0.5 text-right border border-sky-400 rounded font-bold text-sky-700"> m
+                                </div>
+                            </div>
+                            <div class="flex justify-between items-center pt-1 border-t border-slate-100">
+                                <span class="font-semibold text-slate-700">V vùng lắng (D×B×H_hd):</span>
+                                <strong id="m6-sed-vcalc" class="text-sky-800 text-sm">7.26 m³</strong>
+                            </div>
+                            <div id="rt-check-sed" class="rounded-lg border px-2.5 py-1.5 flex flex-wrap justify-between items-center gap-1.5 text-xs"></div>
+                            <div class="formula-block bg-slate-50 border border-slate-200 rounded p-2 text-[11px] font-mono text-slate-600">
+                                • F = Q_hr / LV ; V_sed = D × B × H_hd ; RT_sed = V_sed / Q_hr (Chuẩn: 2 – 4 giờ) ; LV_thực = Q_hr / (D × B)
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 7. Bể khử trùng & xả thải -->
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden print-card">
+                        <div class="bg-slate-100 px-4 py-2 border-b border-slate-200 flex justify-between items-center">
+                            <h3 class="text-xs sm:text-sm font-bold text-slate-800">7. Bể khử trùng & xả thải</h3>
+                            <span class="text-xs font-bold text-sky-700 bg-sky-100 px-2 py-0.5 rounded">V chọn = <span id="m7-dis-badge">1.5</span> m³</span>
+                        </div>
+                        <div class="p-4 space-y-2 text-xs">
+                            <div class="flex justify-between items-center bg-slate-50 p-2 rounded">
+                                <span class="text-slate-600">Thời gian lưu thiết kế RT (30-50p):</span>
+                                <input type="number" id="m7-rt" value="30" min="10" max="90" step="5" oninput="recalcAll()" class="w-16 px-1.5 py-0.5 text-right border border-slate-300 rounded bg-white font-semibold"> phút
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-slate-500">Thể tích tính toán:</span>
+                                <strong id="m7-dis-vreq">1.20 m³</strong>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-slate-500">Khí sục trộn (0.015×V_dis):</span>
+                                <strong id="m7-dis-air">0.023 m³/phút</strong>
+                            </div>
+                            <div class="flex justify-between items-center pt-1 border-t border-slate-100">
+                                <span class="font-semibold text-slate-700">V khử trùng CHỌN:</span>
+                                <input type="number" id="m7-dis-vsel" value="1.5" min="0.5" step="0.5" oninput="recalcAll()" class="w-20 px-2 py-0.5 text-right border border-sky-400 rounded font-bold text-sky-700"> m³
+                            </div>
+                            <div id="rt-check-dis" class="rounded-lg border px-2.5 py-1.5 flex flex-wrap justify-between items-center gap-1.5 text-xs"></div>
+                            <div class="formula-block bg-slate-50 border border-slate-200 rounded p-2 text-[11px] font-mono text-slate-600">
+                                • V_khử_trùng = Q_hr × (RT / 60) ; RT_thực = (V_dis_sel / Q_hr) × 60 (Chuẩn: 30 – 50 phút)
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 8. BỂ CHỨA BÙN (SLUDGE TANK) -->
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden print-card">
+                    <div class="bg-slate-100 px-4 py-2 border-b border-slate-200 flex justify-between items-center">
+                        <h3 class="text-xs sm:text-sm font-bold text-slate-800">8. Bể chứa bùn (Sludge Holding Tank)</h3>
+                        <span class="text-xs font-bold text-sky-700 bg-sky-100 px-2 py-0.5 rounded">V chọn = <span id="m8-v-badge">11.5</span> m³</span>
+                    </div>
+                    <div class="p-4 space-y-2.5 text-xs">
+                        <div class="grid grid-cols-3 gap-2.5">
+                            <div class="bg-slate-50 p-1.5 rounded">
+                                <label class="block text-[10px] text-slate-500">Nồng độ bùn (%)</label>
+                                <input type="number" id="m8-conc" value="1.0" min="0.5" max="5" step="0.1" oninput="recalcAll()" class="w-full mt-0.5 px-1.5 py-0.5 text-right border border-slate-300 rounded bg-white font-semibold">
+                            </div>
+                            <div class="bg-slate-50 p-1.5 rounded">
+                                <label class="block text-[10px] text-slate-500">Tỷ trọng (kg/L)</label>
+                                <input type="number" id="m8-dens" value="1.1" min="1.0" max="1.3" step="0.05" oninput="recalcAll()" class="w-full mt-0.5 px-1.5 py-0.5 text-right border border-slate-300 rounded bg-white font-semibold">
+                            </div>
+                            <div class="bg-slate-50 p-1.5 rounded">
+                                <label class="block text-[10px] text-slate-500">Lưu bùn TK (ngày)</label>
+                                <input type="number" id="m8-rt" value="25" min="5" max="60" step="1" oninput="recalcAll()" class="w-full mt-0.5 px-1.5 py-0.5 text-right border border-slate-300 rounded bg-white font-semibold">
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-1.5 pt-1 border-t border-slate-100">
+                            <div><span class="text-slate-500">S1 / S2:</span> <strong id="m8-s12">7.00 / 2.69 kg/ng</strong></div>
+                            <div><span class="text-slate-500">-S3 / S4:</span> <strong id="m8-s34">-5.14 / 0.56 kg/ng</strong></div>
+                            <div><span class="text-slate-500">Tổng bùn khô:</span> <strong id="m8-dry" class="text-amber-700">5.11 kg/ng</strong></div>
+                            <div><span class="text-slate-500">Bùn ướt (1%):</span> <strong id="m8-wet" class="text-sky-700">0.46 m³/ng</strong></div>
+                            <div><span class="text-slate-500">V bể bùn tính:</span> <strong id="m8-vreq">11.62 m³</strong></div>
+                            <div class="flex items-center justify-between sm:justify-end gap-1.5">
+                                <span class="font-semibold text-slate-700">V CHỌN:</span>
+                                <input type="number" id="m8-v-sel" value="11.5" min="1" step="0.5" oninput="recalcAll()" class="w-20 px-2 py-0.5 text-right border border-sky-400 rounded font-bold text-sky-700"> m³
+                            </div>
+                        </div>
+                        <div id="rt-check-sludge" class="rounded-lg border px-3 py-2 flex flex-wrap justify-between items-center gap-2 text-xs"></div>
+                        <div class="formula-block bg-slate-50 border border-slate-200 rounded p-2 text-[11px] font-mono text-slate-600">
+                            • S1 = 0.5×BODI×Q_day/1000 ; S2 = (SSI - SSO)×Q_day×1e-3 ; S3 = B×MLVSS×VN_sel/1000 ; S4 = 0.15×CMT<br>
+                            • Tổng_bùn = S1 + S2 - S3 + S4 ; V_bùn_1% = Tổng_bùn / 1.1 / 0.01 / 1000 (m³/ng) ; RT_bùn_thực = V_sludge_sel / V_bùn_1% (Chuẩn: 12 – 30 ngày)
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 9. CỤM HÓA CHẤT (METHANOL, NAOH, PAC & MỚI: NAOCL GIẢM COLIFORM) -->
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden print-card">
+                    <div class="bg-slate-100 px-4 py-2 border-b border-slate-200 flex flex-wrap justify-between items-center gap-2">
+                        <h3 class="text-xs sm:text-sm font-bold text-slate-800">9. Cụm bồn & bơm định lượng hóa chất (Methanol, NaOH, PAC, NaOCl)</h3>
+                        <span class="text-[11px] font-semibold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded">Đã bổ sung NaOCl khử Coliform</span>
+                    </div>
+
+                    <div class="p-4 space-y-4 text-xs">
+                        <!-- Bảng 9.1 - 9.3: Methanol, NaOH, PAC -->
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse text-xs">
+                                <thead>
+                                    <tr class="bg-slate-50 text-slate-700 border-b border-slate-200">
+                                        <th class="py-2 px-2 font-semibold">Hóa chất</th>
+                                        <th class="py-2 px-2 font-semibold text-right">Lượng 100%</th>
+                                        <th class="py-2 px-2 font-semibold text-right">Nồng độ</th>
+                                        <th class="py-2 px-2 font-semibold text-right">DD/ngày</th>
+                                        <th class="py-2 px-2 font-semibold text-right">Giờ châm</th>
+                                        <th class="py-2 px-2 font-semibold text-right">Bơm tính</th>
+                                        <th class="py-2 px-2 font-semibold text-right">Bồn CHỌN</th>
+                                        <th class="py-2 px-2 font-semibold text-right">Bơm CHỌN</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-200">
+                                    <!-- 9.1 Methanol -->
+                                    <tr>
+                                        <td class="py-2 px-2">
+                                            <strong>9.1 Methanol</strong>
+                                            <span class="block text-[10px] text-slate-500">Khử Nitrat (ρ=1.0)</span>
+                                        </td>
+                                        <td class="py-2 px-2 text-right font-bold"><span id="c91-kg">3.70</span> kg/ng</td>
+                                        <td class="py-2 px-2 text-right">
+                                            <input type="number" id="c91-conc" value="10" min="1" max="100" oninput="recalcAll()" class="w-12 px-1 py-0.5 text-right border border-slate-300 rounded"> %
+                                        </td>
+                                        <td class="py-2 px-2 text-right font-semibold text-sky-700"><span id="c91-vol">37.0</span> L/ng</td>
+                                        <td class="py-2 px-2 text-right">
+                                            <input type="number" id="c91-hr" value="24" min="1" max="24" oninput="recalcAll()" class="w-12 px-1 py-0.5 text-right border border-slate-300 rounded"> h
+                                        </td>
+                                        <td class="py-2 px-2 text-right"><span id="c91-pcalc">25.7</span> mL/p</td>
+                                        <td class="py-2 px-2 text-right">
+                                            <input type="number" id="c91-tank" value="100" min="50" step="50" oninput="recalcAll()" class="w-16 px-1.5 py-0.5 text-right border border-sky-400 rounded font-bold text-sky-700"> L
+                                        </td>
+                                        <td class="py-2 px-2 text-right">
+                                            <input type="number" id="c91-psel" value="77" min="10" step="5" oninput="recalcAll()" class="w-16 px-1.5 py-0.5 text-right border border-emerald-400 rounded font-bold text-emerald-700"> mL/p
+                                        </td>
+                                    </tr>
+
+                                    <!-- 9.2 NaOH -->
+                                    <tr>
+                                        <td class="py-2 px-2">
+                                            <strong>9.2 NaOH</strong>
+                                            <span class="block text-[10px] text-slate-500">Bù kiềm (ρ=1.35)</span>
+                                        </td>
+                                        <td class="py-2 px-2 text-right font-bold"><span id="c92-kg">13.10</span> kg/ng</td>
+                                        <td class="py-2 px-2 text-right">
+                                            <input type="number" id="c92-conc" value="10" min="1" max="50" oninput="recalcAll()" class="w-12 px-1 py-0.5 text-right border border-slate-300 rounded"> %
+                                        </td>
+                                        <td class="py-2 px-2 text-right font-semibold text-sky-700"><span id="c92-vol">97.0</span> L/ng</td>
+                                        <td class="py-2 px-2 text-right">
+                                            <input type="number" id="c92-hr" value="12" min="1" max="24" oninput="recalcAll()" class="w-12 px-1 py-0.5 text-right border border-slate-300 rounded"> h
+                                        </td>
+                                        <td class="py-2 px-2 text-right"><span id="c92-pcalc">134.8</span> mL/p</td>
+                                        <td class="py-2 px-2 text-right">
+                                            <input type="number" id="c92-tank" value="500" min="100" step="50" oninput="recalcAll()" class="w-16 px-1.5 py-0.5 text-right border border-sky-400 rounded font-bold text-sky-700"> L
+                                        </td>
+                                        <td class="py-2 px-2 text-right">
+                                            <input type="number" id="c92-psel" value="430" min="10" step="10" oninput="recalcAll()" class="w-16 px-1.5 py-0.5 text-right border border-emerald-400 rounded font-bold text-emerald-700"> mL/p
+                                        </td>
+                                    </tr>
+
+                                    <!-- 9.3 PAC -->
+                                    <tr>
+                                        <td class="py-2 px-2">
+                                            <strong>9.3 PAC</strong>
+                                            <span class="block text-[10px] text-slate-500">Khử T-P (ĐL: <input type="number" id="c93-dose" value="1.65" min="0.5" max="10" step="0.05" oninput="recalcAll()" class="w-12 px-1 border border-slate-300 rounded text-right font-semibold"> mg/L)</span>
+                                        </td>
+                                        <td class="py-2 px-2 text-right font-bold"><span id="c93-kg">0.92</span> kg/ng</td>
+                                        <td class="py-2 px-2 text-right">
+                                            <input type="number" id="c93-conc" value="10" min="1" max="30" oninput="recalcAll()" class="w-12 px-1 py-0.5 text-right border border-slate-300 rounded"> %
+                                        </td>
+                                        <td class="py-2 px-2 text-right font-semibold text-sky-700"><span id="c93-vol">9.2</span> L/ng</td>
+                                        <td class="py-2 px-2 text-right">
+                                            <input type="number" id="c93-hr" value="24" min="1" max="24" oninput="recalcAll()" class="w-12 px-1 py-0.5 text-right border border-slate-300 rounded"> h
+                                        </td>
+                                        <td class="py-2 px-2 text-right"><span id="c93-pcalc">6.4</span> mL/p</td>
+                                        <td class="py-2 px-2 text-right">
+                                            <input type="number" id="c93-tank" value="100" min="50" step="50" oninput="recalcAll()" class="w-16 px-1.5 py-0.5 text-right border border-sky-400 rounded font-bold text-sky-700"> L
+                                        </td>
+                                        <td class="py-2 px-2 text-right">
+                                            <input type="number" id="c93-psel" value="77" min="5" step="5" oninput="recalcAll()" class="w-16 px-1.5 py-0.5 text-right border border-emerald-400 rounded font-bold text-emerald-700"> mL/p
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- 9.4 MỚI: CỤM BỒN & BƠM ĐỊNH LƯỢNG NAOCL (KHỬ TRÙNG / GIẢM COLIFORM) -->
+                        <div class="bg-emerald-50/70 border border-emerald-300 rounded-xl p-3.5 space-y-3">
+                            <div class="flex flex-wrap justify-between items-center gap-2 border-b border-emerald-200 pb-2">
+                                <div>
+                                    <h4 class="font-bold text-emerald-950 text-xs sm:text-sm">9.4 Cụm bồn & bơm định lượng NaOCl (Khử trùng / Giảm Coliform)</h4>
+                                    <p class="text-[11px] text-emerald-800">
+                                        Coliform đầu vào: <strong id="c94-col-in">-</strong> • Quy chuẩn / Mục tiêu đầu ra: <strong id="c94-col-out">-</strong> MPN/100mL • Lưu lượng: <strong id="c94-qday">56.0</strong> m³/ngày
+                                    </p>
+                                </div>
+                                <span id="c94-dose-badge" class="text-[11px] font-semibold bg-white text-emerald-800 border border-emerald-300 px-2.5 py-1 rounded-lg">
+                                    Khuyến nghị NTSH: 3 - 10 mg Cl₂/L
+                                </span>
+                            </div>
+
+                            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                                <div class="bg-white p-2 rounded-lg border border-emerald-200">
+                                    <label class="block text-[10px] text-slate-500">Liều Clo hoạt tính (mg Cl₂/L)</label>
+                                    <input type="number" id="c94-dose" value="5.0" min="1" max="25" step="0.5" oninput="recalcAll()" class="w-full mt-0.5 px-1.5 py-0.5 text-right border border-emerald-400 rounded font-bold text-emerald-900">
+                                </div>
+                                <div class="bg-white p-2 rounded-lg border border-emerald-200">
+                                    <label class="block text-[10px] text-slate-500">Nồng độ NaOCl TM (%)</label>
+                                    <input type="number" id="c94-conc" value="10" min="5" max="15" step="0.5" oninput="recalcAll()" class="w-full mt-0.5 px-1.5 py-0.5 text-right border border-slate-300 rounded font-semibold">
+                                </div>
+                                <div class="bg-white p-2 rounded-lg border border-emerald-200">
+                                    <label class="block text-[10px] text-slate-500">Tỷ trọng NaOCl (kg/L)</label>
+                                    <input type="number" id="c94-dens" value="1.15" min="1.05" max="1.25" step="0.01" oninput="recalcAll()" class="w-full mt-0.5 px-1.5 py-0.5 text-right border border-slate-300 rounded font-semibold">
+                                </div>
+                                <div class="bg-white p-2 rounded-lg border border-emerald-200">
+                                    <label class="block text-[10px] text-slate-500">Thời gian châm (giờ/ng)</label>
+                                    <input type="number" id="c94-hr" value="24" min="1" max="24" step="1" oninput="recalcAll()" class="w-full mt-0.5 px-1.5 py-0.5 text-right border border-slate-300 rounded font-semibold">
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs">
+                                <div class="bg-white/90 p-2 rounded-lg border border-emerald-200">
+                                    <span class="text-[10px] text-slate-500 block">Clo hoạt tính (kg Cl₂/ng)</span>
+                                    <strong id="c94-cl2-kg" class="text-sm text-slate-900">0.280 kg/ng</strong>
+                                </div>
+                                <div class="bg-white/90 p-2 rounded-lg border border-emerald-200">
+                                    <span class="text-[10px] text-slate-500 block">NaOCl TM tiêu thụ</span>
+                                    <strong id="c94-naocl-l" class="text-sm text-sky-800">2.43 L/ng</strong>
+                                    <span class="block text-[10px] text-slate-500">(<span id="c94-naocl-kg">2.80</span> kg/ng)</span>
+                                </div>
+                                <div class="bg-white/90 p-2 rounded-lg border border-emerald-200">
+                                    <span class="text-[10px] text-slate-500 block">Bơm ĐL tính (CEIL)</span>
+                                    <strong id="c94-pcalc" class="text-sm text-emerald-800">2 mL/phút</strong>
+                                </div>
+                                <div class="bg-white p-2 rounded-lg border border-emerald-300 space-y-1">
+                                    <div class="flex justify-between items-center">
+                                        <span class="text-[10px] text-slate-600">Bồn chọn:</span>
+                                        <input type="number" id="c94-tank" value="100" min="50" step="50" oninput="recalcAll()" class="w-14 px-1 py-0.5 text-right border border-sky-400 rounded font-bold text-sky-700"> L
+                                    </div>
+                                    <div class="flex justify-between items-center">
+                                        <span class="text-[10px] text-slate-600">Bơm chọn:</span>
+                                        <input type="number" id="c94-psel" value="15" min="5" step="5" oninput="recalcAll()" class="w-14 px-1 py-0.5 text-right border border-emerald-500 rounded font-bold text-emerald-800"> mL/p
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="flex flex-wrap justify-between items-center text-[11px] text-emerald-900 bg-white/70 px-3 py-1.5 rounded-lg border border-emerald-200">
+                                <span>Chu kỳ châm hết bồn <strong id="c94-tank-disp">100</strong> L: <strong id="c94-refill">41.1 ngày</strong></span>
+                                <span id="c94-note" class="font-medium text-emerald-800">Đảm bảo duy trì Clo dư 0.3 - 1.0 mg/L sau bể khử trùng (RT ≥ 30 phút).</span>
+                            </div>
+
+                            <div class="formula-block bg-white border border-emerald-200 rounded p-2 text-[11px] font-mono text-slate-600">
+                                • Đề xuất liều Cl₂: Mức thông thường NTSH 3 - 5 mg/L (nước thải giàu hữu cơ/Coliform cao hoặc quy chuẩn chặt chọn 6 - 10 mg/L).<br>
+                                • Khối lượng Cl₂ (kg/ngày) = Q_day × Liều_Cl2 / 1000 ; NaOCl_TM (kg/ngày) = Cl₂_kg / (C_NaOCl / 100) ; Thể tích NaOCl_TM (L/ngày) = NaOCl_kg / ρ_NaOCl<br>
+                                • Lưu lượng bơm định lượng (mL/phút) = CEIL((Thể_tích_NaOCl_TM × 1000) / (Giờ_châm × 60))
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- BẢNG KÍCH THƯỚC XÂY DỰNG CÁC BỂ -->
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden print-card">
+                    <div class="bg-slate-800 text-white px-4 py-2.5 flex flex-wrap justify-between items-center gap-2">
+                        <h3 class="text-xs sm:text-sm font-bold uppercase tracking-wider">
+                            <i class="fa-solid fa-ruler-combined text-sky-400 mr-2"></i>
+                            Bảng tổng hợp kích thước xây dựng & Kiểm tra RT các bể
+                        </h3>
+                        <span class="text-[11px] text-amber-300 no-print">Chỉnh sửa H_hd, H_bv và Chiều rộng B để tự tính H_tổng, F, Chiều dài L & Check RT</span>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse text-xs">
+                            <thead>
+                                <tr class="bg-slate-100 text-slate-700 border-b border-slate-200">
+                                    <th class="py-2 px-2.5 font-semibold">Bể xử lý</th>
+                                    <th class="py-2 px-1.5 font-semibold text-right bg-sky-50">V chọn<br><span class="text-[10px] font-normal">(m³)</span></th>
+                                    <th class="py-2 px-1.5 font-semibold text-right bg-amber-50">H_hd<br><span class="text-[10px] font-normal">(m)</span></th>
+                                    <th class="py-2 px-1.5 font-semibold text-right bg-amber-50">H_bv<br><span class="text-[10px] font-normal">(m)</span></th>
+                                    <th class="py-2 px-1.5 font-semibold text-right">H_tổng<br><span class="text-[10px] font-normal">(m)</span></th>
+                                    <th class="py-2 px-1.5 font-semibold text-right">Diện tích F<br><span class="text-[10px] font-normal">(m²)</span></th>
+                                    <th class="py-2 px-1.5 font-semibold text-right bg-amber-50">Rộng B<br><span class="text-[10px] font-normal">(m)</span></th>
+                                    <th class="py-2 px-1.5 font-semibold text-right">Dài L<br><span class="text-[10px] font-normal">(m)</span></th>
+                                    <th class="py-2 px-2 font-semibold text-center bg-emerald-50">Kích thước<br><span class="text-[10px] font-normal">(L×B×H_tổng)</span></th>
+                                    <th class="py-2 px-2 font-semibold text-center bg-indigo-50">Check RT thực tế<br><span class="text-[10px] font-normal">& Đánh giá</span></th>
+                                </tr>
+                            </thead>
+                            <tbody id="summary-tanks-tbody" class="divide-y divide-slate-200">
+                                <!-- Render bằng JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- BẢNG TỔNG HỢP THIẾT BỊ CHÍNH -->
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden print-card">
+                    <div class="bg-slate-800 text-white px-4 py-2.5">
+                        <h3 class="text-xs sm:text-sm font-bold uppercase tracking-wider">
+                            <i class="fa-solid fa-gears text-sky-400 mr-2"></i>
+                            Bảng tổng hợp thiết bị chính
+                        </h3>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse text-xs">
+                            <thead>
+                                <tr class="bg-slate-100 text-slate-700 border-b border-slate-200">
+                                    <th class="py-2 px-2.5 font-semibold">TT</th>
+                                    <th class="py-2 px-2.5 font-semibold">Thiết bị / Cụm công trình</th>
+                                    <th class="py-2 px-2.5 font-semibold">Vị trí</th>
+                                    <th class="py-2 px-2.5 font-semibold">Thông số kỹ thuật thiết kế</th>
+                                    <th class="py-2 px-2 font-semibold text-center">Số lượng</th>
+                                </tr>
+                            </thead>
+                            <tbody id="summary-equip-tbody" class="divide-y divide-slate-200">
+                                <!-- Render bằng JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <footer class="bg-slate-900 text-slate-400 border-t border-slate-800 mt-8 no-print">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 text-xs flex flex-col sm:flex-row justify-between items-center gap-2">
+            <span>Hệ Thống Tính Toán Thiết Kế NTSH • Chạy độc lập trên trình duyệt (GitHub Pages / Vercel).</span>
+            <span>Mọi thông số và kích thước đều cập nhật tự động theo thời gian thực.</span>
+        </div>
+    </footer>
+
+    <script>
+        let showFormulas = true;
+
+        // 5 tùy chọn Tiêu chuẩn xả thải đầu ra
+        const standardsData = {
+            qcvn14_a: {
+                label: 'QCVN 14:2025/BTNMT - Cột A',
+                hint: 'Áp dụng QCVN 14:2025/BTNMT - Cột A cho nước thải sinh hoạt.',
+                locked: true,
+                values: {
+                    ph: { std: '5.5 - 9', out: 7.2 },
+                    tss: { std: 50, out: 40 },
+                    cod: { std: 75, out: 65 },
+                    bod: { std: 30, out: 25 },
+                    nh4: { std: 5, out: 4 },
+                    tn: { std: 20, out: 18 },
+                    no3: { std: 30, out: 0 },
+                    tp: { std: 4, out: 3.5 },
+                    oil: { std: 10, out: 0 },
+                    coliform: { std: 3000, out: 1000 }
+                }
+            },
+            qcvn14_b: {
+                label: 'QCVN 14:2025/BTNMT - Cột B',
+                hint: 'Áp dụng QCVN 14:2025/BTNMT - Cột B cho nước thải sinh hoạt.',
+                locked: true,
+                values: {
+                    ph: { std: '5.5 - 9', out: 7.2 },
+                    tss: { std: 100, out: 80 },
+                    cod: { std: 150, out: 140 },
+                    bod: { std: 50, out: 40 },
+                    nh4: { std: 8, out: 7 },
+                    tn: { std: 40, out: 30 },
+                    no3: { std: 50, out: 0 },
+                    tp: { std: 6, out: 5 },
+                    oil: { std: 20, out: 0 },
+                    coliform: { std: 5000, out: 3000 }
+                }
+            },
+            qcvn40_a: {
+                label: 'QCVN 40:2025/BTNMT - Cột A',
+                hint: 'Áp dụng QCVN 40:2025/BTNMT - Cột A làm ngưỡng tham chiếu đầu ra.',
+                locked: true,
+                values: {
+                    ph: { std: '6.0 - 9', out: 7.2 },
+                    tss: { std: 50, out: 40 },
+                    cod: { std: 75, out: 65 },
+                    bod: { std: 30, out: 25 },
+                    nh4: { std: 5, out: 4 },
+                    tn: { std: 20, out: 18 },
+                    no3: { std: 30, out: 0 },
+                    tp: { std: 4, out: 3.5 },
+                    oil: { std: 5, out: 0 },
+                    coliform: { std: 3000, out: 1000 }
+                }
+            },
+            qcvn40_b: {
+                label: 'QCVN 40:2025/BTNMT - Cột B',
+                hint: 'Áp dụng QCVN 40:2025/BTNMT - Cột B làm ngưỡng tham chiếu đầu ra.',
+                locked: true,
+                values: {
+                    ph: { std: '5.5 - 9', out: 7.2 },
+                    tss: { std: 100, out: 85 },
+                    cod: { std: 150, out: 135 },
+                    bod: { std: 50, out: 40 },
+                    nh4: { std: 10, out: 8 },
+                    tn: { std: 40, out: 32 },
+                    no3: { std: 50, out: 0 },
+                    tp: { std: 6, out: 5 },
+                    oil: { std: 10, out: 0 },
+                    coliform: { std: 5000, out: 3000 }
+                }
+            },
+            custom: {
+                label: 'TỰ NHẬP ĐẦU RA',
+                hint: 'Đang mở khóa cột Quy chuẩn: bạn có thể tự nhập giá trị quy chuẩn và đầu ra thiết kế mong muốn.',
+                locked: false,
+                values: null
+            }
+        };
+
+        // Danh sách chỉ tiêu nước thải
+        const wqParams = [
+            { id: 'ph', name: 'pH', inVal: '7.2', type: 'text' },
+            { id: 'tss', name: 'TSS (mg/L)', inVal: 200, type: 'number' },
+            { id: 'cod', name: 'COD (mg/L)', inVal: 350, type: 'number' },
+            { id: 'bod', name: 'BOD₅ (mg/L)', inVal: 250, type: 'number' },
+            { id: 'nh4', name: 'NH₄⁺-N (mg/L)', inVal: 70, type: 'number' },
+            { id: 'tn', name: 'T-N (mg/L)', inVal: 80, type: 'number' },
+            { id: 'no3', name: 'NO₃⁻-N (mg/L)', inVal: 0, type: 'number' },
+            { id: 'tp', name: 'T-P (mg/L)', inVal: 15, type: 'number' },
+            { id: 'oil', name: 'Dầu mỡ (mg/L)', inVal: 25, type: 'number' },
+            { id: 'coliform', name: 'Coliform (MPN/100mL)', inVal: 1000000, type: 'number' }
+        ];
+
+        // Kích thước hình học mặc định từng bể
+        const tankDimConfig = [
+            { id: 'sumpit', name: '1. Bể gom (Sumpit)', hEff: 2.0, hFb: 0.5, width: 1.0 },
+            { id: 'eq',     name: '2. Bể điều hòa', hEff: 3.0, hFb: 0.5, width: 2.0 },
+            { id: 'anoxic', name: '3. Bể thiếu khí (Anoxic)', hEff: 3.0, hFb: 0.5, width: 2.5 },
+            { id: 'oxic',   name: '4. Bể hiếu khí (Oxic)', hEff: 3.0, hFb: 0.5, width: 2.5 },
+            { id: 'sed',    name: '5. Bể lắng sinh học', hEff: 1.5, hFb: 0.5, width: 2.2 },
+            { id: 'dis',    name: '6. Bể khử trùng & xả thải', hEff: 1.5, hFb: 0.5, width: 1.0 },
+            { id: 'sludge', name: '7. Bể chứa bùn', hEff: 3.0, hFb: 0.5, width: 2.5 }
+        ];
+
+        function initWaterQualityTable() {
+            const tbody = document.getElementById('water-quality-tbody');
+            const stdObj = standardsData.qcvn14_b;
+
+            tbody.innerHTML = wqParams.map(p => {
+                const sVal = stdObj.values[p.id].std;
+                const oVal = stdObj.values[p.id].out;
+                const stepAttr = p.id === 'coliform' ? 'step="100"' : 'step="1"';
+                return `
+                    <tr class="hover:bg-slate-50">
+                        <td class="py-1.5 px-2 font-medium text-slate-800">${p.name}</td>
+                        <td class="py-1.5 px-1.5 text-right bg-amber-50/30">
+                            <input type="${p.type}" id="wq-in-${p.id}" value="${p.inVal}" ${p.type === 'number' ? stepAttr : ''} oninput="recalcAll()" class="w-20 px-1 py-0.5 text-right border border-slate-300 rounded bg-white font-semibold text-slate-800">
+                        </td>
+                        <td class="py-1.5 px-1.5 text-right bg-sky-50/30">
+                            <input type="text" id="wq-std-${p.id}" value="${sVal}" readonly oninput="recalcAll()" class="w-20 px-1 py-0.5 text-right border border-transparent rounded bg-transparent font-medium text-sky-800">
+                        </td>
+                        <td class="py-1.5 px-1.5 text-right bg-emerald-50/30">
+                            <input type="${p.type}" id="wq-out-${p.id}" value="${oVal}" ${p.type === 'number' ? stepAttr : ''} oninput="recalcAll()" class="w-20 px-1 py-0.5 text-right border border-emerald-300 rounded bg-white font-bold text-emerald-800">
+                        </td>
+                        <td class="py-1.5 px-1.5 text-right font-semibold text-slate-600" id="wq-eff-${p.id}">-</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function onStandardChange() {
+            const stdKey = document.getElementById('in-std-select').value;
+            const stdObj = standardsData[stdKey];
+            document.getElementById('std-mode-hint').innerText = stdObj.hint;
+
+            wqParams.forEach(p => {
+                const stdInput = document.getElementById(`wq-std-${p.id}`);
+                const outInput = document.getElementById(`wq-out-${p.id}`);
+                if (stdObj.locked) {
+                    stdInput.value = stdObj.values[p.id].std;
+                    stdInput.readOnly = true;
+                    stdInput.className = "w-20 px-1 py-0.5 text-right border border-transparent rounded bg-transparent font-medium text-sky-800";
+                    outInput.value = stdObj.values[p.id].out;
+                } else {
+                    stdInput.readOnly = false;
+                    stdInput.className = "w-20 px-1 py-0.5 text-right border border-sky-400 rounded bg-white font-bold text-sky-800";
+                }
+            });
+            recalcAll();
+        }
+
+        // Điền nhanh thông số nước thải sinh hoạt điển hình theo kinh nghiệm
+        function fillTypicalDomestic() {
+            document.getElementById('wq-in-ph').value = '7.2';
+            document.getElementById('wq-in-tss').value = 260;
+            document.getElementById('wq-in-cod').value = 420;
+            document.getElementById('wq-in-bod').value = 250;
+            document.getElementById('wq-in-nh4').value = 65;
+            document.getElementById('wq-in-tn').value = 82;
+            document.getElementById('wq-in-no3').value = 0;
+            document.getElementById('wq-in-tp').value = 14;
+            document.getElementById('wq-in-oil').value = 25;
+            document.getElementById('wq-in-coliform').value = 5000000;
+            recalcAll();
+        }
+
+        // Khôi phục dữ liệu gốc theo file Excel (56 m3/ngày)
+        function loadExcelDefaults() {
+            document.getElementById('in-q-raw').value = 56;
+            document.getElementById('in-q-sludge').value = 0;
+            document.getElementById('in-t-discharge').value = 24;
+            document.getElementById('in-t-sys').value = 24;
+            document.getElementById('in-q-hr-sel').value = 2.4;
+
+            document.getElementById('in-std-select').value = 'qcvn14_b';
+            onStandardChange();
+
+            document.getElementById('wq-in-ph').value = '7.2';
+            document.getElementById('wq-in-tss').value = 200;
+            document.getElementById('wq-in-cod').value = 350;
+            document.getElementById('wq-in-bod').value = 250;
+            document.getElementById('wq-in-nh4').value = 70;
+            document.getElementById('wq-in-tn').value = 80;
+            document.getElementById('wq-in-no3').value = 0;
+            document.getElementById('wq-in-tp').value = 15;
+            document.getElementById('wq-in-oil').value = 25;
+            document.getElementById('wq-in-coliform').value = 1000000;
+
+            document.getElementById('m1-peak').value = 2.0;
+            document.getElementById('m1-dt').value = 20;
+            document.getElementById('m1-v-sel').value = 2.0;
+            document.getElementById('m1-q-pump-sel').value = 5.0;
+
+            document.getElementById('m2-sf').value = 1.1;
+            document.getElementById('m2-rt-buf').value = 6.0;
+            document.getElementById('m2-v-sel').value = 15.5;
+
+            document.getElementById('m3-r').value = 1.0;
+            document.getElementById('m3-kd15').value = 0.025;
+            document.getElementById('m3-stan').value = 1.07;
+            document.getElementById('m3-temp').value = 31;
+            document.getElementById('m3-mlvss').value = 2500;
+            document.getElementById('m3-sf').value = 1.1;
+            document.getElementById('m3-v-sel').value = 19;
+
+            document.getElementById('m4-kn15').value = 0.018;
+            document.getElementById('m4-stan').value = 1.09;
+            document.getElementById('m4-temp').value = 32;
+            document.getElementById('m4-srt').value = 8;
+            document.getElementById('m4-a').value = 0.5;
+            document.getElementById('m4-sf').value = 1.05;
+            document.getElementById('m4-v-sel').value = 26;
+
+            document.getElementById('m5-scum').checked = true;
+            document.getElementById('m5-hox').value = 3.0;
+            document.getElementById('m5-sf-bio').value = 1.1;
+            document.getElementById('m5-disc-cap').value = 80;
+            document.getElementById('m5-disc-sel').value = 20;
+            document.getElementById('m5-kmix').value = 0.015;
+            document.getElementById('m5-sf-mix').value = 1.1;
+
+            document.getElementById('m6-lv').value = 0.5;
+            document.getElementById('m6-hsed').value = 1.5;
+            document.getElementById('m6-sed-dim').value = 2.2;
+            const sedCfg = tankDimConfig.find(t => t.id === 'sed');
+            if (sedCfg) { sedCfg.hEff = 1.5; sedCfg.width = 2.2; }
+
+            document.getElementById('m7-rt').value = 30;
+            document.getElementById('m7-dis-vsel').value = 1.5;
+
+            document.getElementById('m8-conc').value = 1.0;
+            document.getElementById('m8-dens').value = 1.1;
+            document.getElementById('m8-rt').value = 25;
+            document.getElementById('m8-v-sel').value = 11.5;
+
+            document.getElementById('c91-conc').value = 10;
+            document.getElementById('c91-hr').value = 24;
+            document.getElementById('c91-tank').value = 100;
+            document.getElementById('c91-psel').value = 77;
+
+            document.getElementById('c92-conc').value = 10;
+            document.getElementById('c92-hr').value = 12;
+            document.getElementById('c92-tank').value = 500;
+            document.getElementById('c92-psel').value = 430;
+
+            document.getElementById('c93-dose').value = 1.65;
+            document.getElementById('c93-conc').value = 10;
+            document.getElementById('c93-hr').value = 24;
+            document.getElementById('c93-tank').value = 100;
+            document.getElementById('c93-psel').value = 77;
+
+            document.getElementById('c94-dose').value = 5.0;
+            document.getElementById('c94-conc').value = 10;
+            document.getElementById('c94-dens').value = 1.15;
+            document.getElementById('c94-hr').value = 24;
+            document.getElementById('c94-tank').value = 100;
+            document.getElementById('c94-psel').value = 15;
+
+            recalcAll();
+        }
+
+        function toggleFormulas() {
+            showFormulas = !showFormulas;
+            document.body.classList.toggle('hide-formulas', !showFormulas);
+            const icon = document.getElementById('icon-formula');
+            const text = document.getElementById('text-formula');
+            if (showFormulas) {
+                icon.className = 'fa-solid fa-eye-slash';
+                text.innerText = 'Ẩn cách tính toán';
+            } else {
+                icon.className = 'fa-solid fa-eye';
+                text.innerText = 'Hiện cách tính toán';
+            }
+        }
+
+        function prepareAndPrint() {
+            const d = document.getElementById('meta-date').value;
+            document.getElementById('print-date').innerText = d || new Date().toLocaleDateString('vi-VN');
+            const stdKey = document.getElementById('in-std-select').value;
+            document.getElementById('print-std-label').innerText = standardsData[stdKey].label;
+
+            const qDay = document.getElementById('out-q-day').innerText;
+            const qHr = document.getElementById('in-q-hr-sel').value;
+            const bodIn = document.getElementById('wq-in-bod').value;
+            const bodOut = document.getElementById('wq-out-bod').value;
+            const tnIn = document.getElementById('wq-in-tn').value;
+            const tnOut = document.getElementById('wq-out-tn').value;
+            const colIn = document.getElementById('wq-in-coliform').value;
+            const colOut = document.getElementById('wq-out-coliform').value;
+
+            document.getElementById('print-input-summary').innerHTML = `
+                <div><strong>Lưu lượng ngày:</strong> ${qDay} m³/ngày</div>
+                <div><strong>Công suất giờ chọn:</strong> ${qHr} m³/giờ</div>
+                <div><strong>BOD₅ (Vào → Ra):</strong> ${bodIn} → ${bodOut} mg/L</div>
+                <div><strong>Tổng N (Vào → Ra):</strong> ${tnIn} → ${tnOut} mg/L</div>
+                <div><strong>Coliform (Vào → Ra):</strong> ${Number(colIn).toLocaleString('vi-VN')} → ${Number(colOut).toLocaleString('vi-VN')} MPN/100mL</div>
+                <div><strong>Tiêu chuẩn:</strong> ${standardsData[stdKey].label}</div>
+            `;
+            window.print();
+        }
+
+        function updateTankDim(tankId, field, val) {
+            const num = parseFloat(val);
+            if (isNaN(num) || num <= 0) return;
+            const target = tankDimConfig.find(t => t.id === tankId);
+            if (target) {
+                target[field] = num;
+                if (tankId === 'sed') {
+                    if (field === 'hEff') document.getElementById('m6-hsed').value = num;
+                    if (field === 'width') document.getElementById('m6-sed-dim').value = num;
+                }
+                recalcAll();
+            }
+        }
+
+        function onSedHeightInput(val) {
+            const num = parseFloat(val);
+            if (isNaN(num) || num <= 0) return;
+            const sedCfg = tankDimConfig.find(t => t.id === 'sed');
+            if (sedCfg) sedCfg.hEff = num;
+            recalcAll();
+        }
+
+        function onSedDimInput(val) {
+            const num = parseFloat(val);
+            if (isNaN(num) || num <= 0) return;
+            const sedCfg = tankDimConfig.find(t => t.id === 'sed');
+            if (sedCfg) sedCfg.width = num;
+            recalcAll();
+        }
+
+        // Hàm đánh giá RT thực tế theo ngưỡng tiêu chuẩn từng bể
+        function evaluateRT(val, minStd, maxStd, unit) {
+            if (!isFinite(val) || isNaN(val)) {
+                return {
+                    status: 'Chưa xác định',
+                    boxClass: 'bg-slate-50 border-slate-200 text-slate-700',
+                    badgeClass: 'bg-slate-200 text-slate-700',
+                    tableBadgeClass: 'bg-slate-100 text-slate-700 border-slate-200',
+                    icon: 'fa-circle-info',
+                    advice: 'Kiểm tra lại thông số lưu lượng đầu vào.'
+                };
+            }
+            if (val < minStd) {
+                return {
+                    status: 'Nhỏ quá',
+                    boxClass: 'bg-rose-50/90 border-rose-300 text-rose-950',
+                    badgeClass: 'bg-rose-600 text-white',
+                    tableBadgeClass: 'bg-rose-100 text-rose-800 border-rose-300',
+                    icon: 'fa-triangle-exclamation',
+                    advice: `Thiếu thời gian lưu (thấp hơn mức tối thiểu ${minStd} ${unit}), nên tăng thể tích chọn.`
+                };
+            }
+            if (val > maxStd) {
+                return {
+                    status: 'Lớn quá',
+                    boxClass: 'bg-amber-50/90 border-amber-300 text-amber-950',
+                    badgeClass: 'bg-amber-600 text-white',
+                    tableBadgeClass: 'bg-amber-100 text-amber-800 border-amber-300',
+                    icon: 'fa-circle-exclamation',
+                    advice: `Dư thể tích (vượt ngưỡng khuyến nghị ${maxStd} ${unit}), có thể thu gọn để tối ưu chi phí xây dựng.`
+                };
+            }
+            return {
+                status: 'Đạt chuẩn',
+                boxClass: 'bg-emerald-50/90 border-emerald-300 text-emerald-950',
+                badgeClass: 'bg-emerald-600 text-white',
+                tableBadgeClass: 'bg-emerald-100 text-emerald-800 border-emerald-300',
+                icon: 'fa-circle-check',
+                advice: `Nằm trong dải tiêu chuẩn thiết kế (${minStd} – ${maxStd} ${unit}).`
+            };
+        }
+
+        function renderRTCheckBox(elId, title, valStr, unit, minStd, maxStd, evalObj, extraNote = '') {
+            const el = document.getElementById(elId);
+            if (!el) return;
+            el.className = `rounded-lg border px-3 py-2 flex flex-wrap justify-between items-center gap-2 text-xs ${evalObj.boxClass}`;
+            el.innerHTML = `
+                <div class="space-y-0.5">
+                    <div class="flex flex-wrap items-center gap-1.5">
+                        <span class="font-bold"><i class="fa-solid ${evalObj.icon} mr-1"></i>${title}:</span>
+                        <span class="font-mono font-bold text-sm">${valStr} ${unit}</span>
+                        <span class="text-[11px] opacity-80">(Chuẩn: ${minStd} – ${maxStd} ${unit})</span>
+                    </div>
+                    <p class="text-[11px] opacity-90">${evalObj.advice}${extraNote ? ' • ' + extraNote : ''}</p>
+                </div>
+                <span class="px-2.5 py-1 rounded-md font-bold text-[11px] uppercase tracking-wide shadow-sm ${evalObj.badgeClass}">
+                    ${evalObj.status}
+                </span>
+            `;
+        }
+
+        function recalcAll() {
+            // A.1 Công suất
+            const qRaw = Math.max(0, parseFloat(document.getElementById('in-q-raw').value) || 0);
+            const qSludgeIn = Math.max(0, parseFloat(document.getElementById('in-q-sludge').value) || 0);
+            const Q_day = qRaw + qSludgeIn;
+            const tDis = Math.min(24, Math.max(0.5, parseFloat(document.getElementById('in-t-discharge').value) || 24));
+            const tSys = Math.min(24, Math.max(0.5, parseFloat(document.getElementById('in-t-sys').value) || 24));
+            const qDischarge = Q_day / tDis;
+            const qHrCalc = Q_day / tSys;
+            const Q_hr = Math.max(0.05, parseFloat(document.getElementById('in-q-hr-sel').value) || qHrCalc);
+
+            document.getElementById('out-q-day').innerText = Q_day.toFixed(1);
+            document.getElementById('out-q-discharge').innerText = qDischarge.toFixed(2);
+            document.getElementById('out-q-hr-calc').innerText = qHrCalc.toFixed(2);
+
+            // A.2 Chỉ tiêu chất lượng nước & Hiệu suất xử lý
+            wqParams.forEach(p => {
+                const effCell = document.getElementById(`wq-eff-${p.id}`);
+                const vIn = parseFloat(document.getElementById(`wq-in-${p.id}`).value);
+                const vOut = parseFloat(document.getElementById(`wq-out-${p.id}`).value);
+                if (!isNaN(vIn) && !isNaN(vOut) && vIn > 0 && p.id !== 'ph') {
+                    const eff = ((vIn - vOut) / vIn) * 100;
+                    effCell.innerText = eff >= 0 ? eff.toFixed(1) + '%' : '-';
+                } else {
+                    effCell.innerText = '-';
+                }
+            });
+
+            const SSI = parseFloat(document.getElementById('wq-in-tss').value) || 0;
+            const SSO = parseFloat(document.getElementById('wq-out-tss').value) || 0;
+            const BODI = parseFloat(document.getElementById('wq-in-bod').value) || 0;
+            const BODO = parseFloat(document.getElementById('wq-out-bod').value) || 0;
+            const NH4I = parseFloat(document.getElementById('wq-in-nh4').value) || 0;
+            const TNI = Math.max(0.1, parseFloat(document.getElementById('wq-in-tn').value) || 80);
+            const TNO = Math.max(0, parseFloat(document.getElementById('wq-out-tn').value) || 0);
+            const TPI = parseFloat(document.getElementById('wq-in-tp').value) || 0;
+            const TPO = parseFloat(document.getElementById('wq-out-tp').value) || 0;
+            const colIn = parseFloat(document.getElementById('wq-in-coliform').value) || 0;
+            const colOut = parseFloat(document.getElementById('wq-out-coliform').value) || 0;
+            const colStd = document.getElementById('wq-std-coliform').value;
+
+            // 1. Bể gom (Sumpit)
+            const m1Peak = parseFloat(document.getElementById('m1-peak').value) || 2.0;
+            const m1Dt = parseFloat(document.getElementById('m1-dt').value) || 20;
+            const m1Vcalc = Q_hr * m1Peak * (m1Dt / 60);
+            const m1Vsel = parseFloat(document.getElementById('m1-v-sel').value) || m1Vcalc;
+            const m1QpumpReq = Q_hr * m1Peak;
+            const m1QpumpSel = parseFloat(document.getElementById('m1-q-pump-sel').value) || m1QpumpReq;
+
+            document.getElementById('m1-v-calc').innerText = `${m1Vcalc.toFixed(2)} m³`;
+            document.getElementById('m1-v-badge').innerText = m1Vsel.toFixed(1);
+            document.getElementById('m1-q-pump-req').innerText = `${m1QpumpReq.toFixed(2)} m³/h`;
+
+            // 2. Bể điều hòa
+            const m2Sf = parseFloat(document.getElementById('m2-sf').value) || 1.1;
+            const m2RtBuf = parseFloat(document.getElementById('m2-rt-buf').value) || 6.0;
+            const m2VTreated = Q_hr * tDis;
+            const m2VRem = Q_day - m2VTreated;
+            const m2VCalc = m2VRem * m2Sf;
+            const m2VBuf = Q_hr * m2RtBuf * m2Sf;
+            const m2Vsel = parseFloat(document.getElementById('m2-v-sel').value) || 15.5;
+
+            document.getElementById('m2-v-treated').innerText = `${m2VTreated.toFixed(2)} m³`;
+            document.getElementById('m2-v-rem').innerText = `${m2VRem.toFixed(2)} m³`;
+            document.getElementById('m2-v-calc').innerText = m2VCalc.toFixed(2);
+            document.getElementById('m2-v-buf').innerText = m2VBuf.toFixed(2);
+            document.getElementById('m2-v-badge').innerText = m2Vsel.toFixed(1);
+
+            // 3. Bể thiếu khí (Anoxic)
+            const R = parseFloat(document.getElementById('m3-r').value) || 1.0;
+            const KD15 = parseFloat(document.getElementById('m3-kd15').value) || 0.025;
+            const STAN_anox = parseFloat(document.getElementById('m3-stan').value) || 1.07;
+            const T_anox = parseFloat(document.getElementById('m3-temp').value) || 31;
+            const MLVSS = Math.max(100, parseFloat(document.getElementById('m3-mlvss').value) || 2500);
+            const SF_anox = parseFloat(document.getElementById('m3-sf').value) || 1.1;
+
+            const H_denit = Math.min(0.95, Math.max(0.05, (TNI - TNO) / TNI));
+            const Rn_raw = (H_denit + (H_denit - 1) * R) / (1 - H_denit);
+            const Rn = Math.max(0.1, Math.round(Rn_raw * 100) / 100);
+            const Rn_sel = Math.max(0.1, Math.ceil(Rn * 10) / 10);
+            const KDT = Math.ceil((KD15 * Math.pow(STAN_anox, T_anox - 15)) * 1000) / 1000;
+            const DTD0 = 15;
+            const VD1 = ((TNI * Q_day * 10 * H_denit) / (KDT * MLVSS * 10)) + (((1 + R + Rn_sel) * Q_day * DTD0) / (tSys * 60));
+            const VD1_sel = Math.ceil(VD1 * SF_anox);
+            const m3Vsel = parseFloat(document.getElementById('m3-v-sel').value) || VD1_sel;
+            const m3Rt = m3Vsel / Math.max(0.05, Q_hr);
+
+            const k_meth = 0.7;
+            const CMT_sel = Math.ceil(Math.max(0, (((3 * TNI) - BODI * k_meth) * Q_day / 1000)) * 10) / 10;
+
+            document.getElementById('m3-h').innerText = H_denit.toFixed(3);
+            document.getElementById('m3-rn').innerText = Rn.toFixed(2);
+            document.getElementById('m3-rn-sel').innerText = Rn_sel.toFixed(1);
+            document.getElementById('m3-kdt').innerText = KDT.toFixed(3);
+            document.getElementById('m3-vd1').innerText = `${VD1.toFixed(2)} m³`;
+            document.getElementById('m3-rt').innerText = `${m3Rt.toFixed(2)} giờ`;
+            document.getElementById('m3-cmt').innerText = `${CMT_sel.toFixed(1)} kg/ngày`;
+            document.getElementById('m3-q-ir').innerText = `${(Rn_sel * Q_hr).toFixed(2)} m³/h`;
+            document.getElementById('m3-v-badge').innerText = m3Vsel.toFixed(1);
+
+            // 4. Bể hiếu khí (Oxic)
+            const KN15 = parseFloat(document.getElementById('m4-kn15').value) || 0.018;
+            const STAN_ox = parseFloat(document.getElementById('m4-stan').value) || 1.09;
+            const T_ox = parseFloat(document.getElementById('m4-temp').value) || 32;
+            const SRT = parseFloat(document.getElementById('m4-srt').value) || 8;
+            const A_bod = parseFloat(document.getElementById('m4-a').value) || 0.5;
+            const SF_ox = parseFloat(document.getElementById('m4-sf').value) || 1.05;
+            const TKN = NH4I > 0 ? Math.max(TNI, NH4I) : TNI;
+
+            const KNT = Math.ceil((KN15 * Math.pow(STAN_ox, T_ox - 15)) * 1000) / 1000;
+            const VN1 = Math.ceil(((TKN * Q_day * 1e-3) / (KNT * MLVSS * 1e-3)) * 100) / 100;
+            const VN1_sel = Math.ceil(VN1 * SF_ox);
+
+            const B_val = Math.ceil((0.05 * Math.pow(1.042, T_anox - 20)) * 1000) / 1000;
+            const W1 = A_bod * BODI * Q_day / 1000;
+            const W2 = B_val * MLVSS * Q_day / 1000; // Nhân Q_day theo xác nhận
+            const W3 = (0.15 * CMT_sel) + (SSI * Q_day / 1000); // Cộng 0.15 * CMT_sel theo xác nhận
+            const VN2 = Math.ceil((((W1 - W2 + W3) * SRT * 1000) / MLVSS) * 100) / 100;
+            const VN2_sel = Math.ceil(VN2 * SF_ox * 10) / 10;
+
+            const maxVn = Math.max(VN1_sel, VN2_sel);
+            const VN_sel = parseFloat(document.getElementById('m4-v-sel').value) || maxVn;
+            const m4Rt = VN_sel / Math.max(0.05, Q_hr);
+
+            document.getElementById('m4-knt').innerText = KNT.toFixed(3);
+            document.getElementById('m4-vn1').innerText = `${VN1.toFixed(2)} → ${VN1_sel} m³`;
+            document.getElementById('m4-tb-lbl').innerText = T_anox;
+            document.getElementById('m4-b').innerText = B_val.toFixed(3);
+            document.getElementById('m4-w123').innerText = `${W1.toFixed(1)} / ${W2.toFixed(1)} / ${W3.toFixed(1)}`;
+            document.getElementById('m4-vn2').innerText = `${VN2.toFixed(2)} → ${VN2_sel.toFixed(1)} m³`;
+            document.getElementById('m4-rt').innerText = `${m4Rt.toFixed(2)} giờ`;
+            document.getElementById('m4-max-vn').innerText = `${maxVn.toFixed(1)} m³`;
+            document.getElementById('m4-v-badge').innerText = VN_sel.toFixed(1);
+
+            // 6, 7, 8: Bể lắng, Bể khử trùng, Bể chứa bùn (tính trước để lấy V_dis, V_sludge cho khí khuấy trộn)
+            const m6Lv = Math.max(0.1, parseFloat(document.getElementById('m6-lv').value) || 0.5);
+            const m6Area = Q_hr / m6Lv;
+            const m6Side = Math.sqrt(m6Area);
+            const sedCfg = tankDimConfig.find(t => t.id === 'sed');
+            const m6Hsed = Math.max(0.5, parseFloat(document.getElementById('m6-hsed').value) || (sedCfg ? sedCfg.hEff : 1.5));
+            const m6SedDim = Math.max(0.5, parseFloat(document.getElementById('m6-sed-dim').value) || (sedCfg ? sedCfg.width : 2.2));
+            if (sedCfg) {
+                sedCfg.hEff = m6Hsed;
+                sedCfg.width = m6SedDim;
+            }
+            const m6SedVsel = m6SedDim * m6SedDim * m6Hsed;
+            const m6LvActual = Q_hr / (m6SedDim * m6SedDim);
+
+            const m7Rt = parseFloat(document.getElementById('m7-rt').value) || 30;
+            const m7DisVreq = Q_hr * (m7Rt / 60);
+            const m7DisVsel = parseFloat(document.getElementById('m7-dis-vsel').value) || 1.5;
+
+            const m8Conc = Math.max(0.1, parseFloat(document.getElementById('m8-conc').value) || 1.0);
+            const m8Dens = Math.max(0.5, parseFloat(document.getElementById('m8-dens').value) || 1.1);
+            const m8Rt = parseFloat(document.getElementById('m8-rt').value) || 25;
+
+            const S1 = 0.5 * BODI * Q_day / 1000;
+            const S2 = Math.max(0, SSI - SSO) * Q_day * 1e-3;
+            const S3 = B_val * MLVSS * VN_sel / 1000;
+            const S4 = 0.15 * CMT_sel;
+            const totalSludge = Math.max(0.05, S1 + S2 - S3 + S4);
+            const sludgeVol1Pct = totalSludge / m8Dens / (m8Conc / 100) / 1000;
+            const m8Vreq = sludgeVol1Pct * m8Rt;
+            const m8Vsel = parseFloat(document.getElementById('m8-v-sel').value) || Math.ceil(m8Vreq * 2) / 2;
+
+            document.getElementById('m6-sed-area').innerText = `${m6Area.toFixed(2)} m²`;
+            document.getElementById('m6-sed-side').innerText = `${m6Side.toFixed(2)} m`;
+            document.getElementById('m6-sed-vcalc').innerText = `${m6SedVsel.toFixed(2)} m³`;
+            document.getElementById('m6-sed-badge').innerText = m6SedVsel.toFixed(1);
+
+            document.getElementById('m7-dis-vreq').innerText = `${m7DisVreq.toFixed(2)} m³`;
+            document.getElementById('m7-dis-air').innerText = `${(0.015 * m7DisVsel).toFixed(3)} m³/phút`;
+            document.getElementById('m7-dis-badge').innerText = m7DisVsel.toFixed(1);
+
+            document.getElementById('m8-s12').innerText = `${S1.toFixed(2)} / ${S2.toFixed(2)} kg/ng`;
+            document.getElementById('m8-s34').innerText = `${(-S3).toFixed(2)} / ${S4.toFixed(2)} kg/ng`;
+            document.getElementById('m8-dry').innerText = `${totalSludge.toFixed(2)} kg/ng`;
+            document.getElementById('m8-wet').innerText = `${sludgeVol1Pct.toFixed(2)} m³/ng`;
+            document.getElementById('m8-vreq').innerText = `${m8Vreq.toFixed(2)} m³`;
+            document.getElementById('m8-v-badge').innerText = m8Vsel.toFixed(1);
+
+            // 5. Tách riêng Cấp khí sinh học & Khuấy trộn + Bù kiềm NaOH
+            const includeScum = document.getElementById('m5-scum').checked;
+            const m5Hox = parseFloat(document.getElementById('m5-hox').value) || 3.0;
+            const m5SfBio = parseFloat(document.getElementById('m5-sf-bio').value) || 1.1;
+            const m5DiscCap = Math.max(10, parseFloat(document.getElementById('m5-disc-cap').value) || 80);
+            const m5DiscSel = Math.max(1, parseInt(document.getElementById('m5-disc-sel').value) || 20);
+            const m5Kmix = parseFloat(document.getElementById('m5-kmix').value) || 0.015;
+            const m5SfMix = parseFloat(document.getElementById('m5-sf-mix').value) || 1.1;
+
+            const YTAH = Math.max(0.01, (2.35 * m5Hox - 0.15) / 100);
+            const W4 = Q_day * (BODI - BODO - TNI * 2.86) * 1e-3;
+            const W5 = 0.08 * (m3Vsel + MLVSS) * VN_sel * 1e-3;
+            const W6 = 4.57 * Q_day * TNI * 1e-3;
+            const QAS = Math.max(0.05, Math.ceil((((W4 + W5 + W6) * 1.15) / (0.28 * YTAH * tSys * 60)) * 100) / 100);
+
+            const qBioReq = (QAS * m5SfBio) + (includeScum ? 0.1 * QAS : 0);
+            const blowerBioSel = Math.ceil(qBioReq * 10) / 10;
+            const discReq = Math.ceil((qBioReq * 1000) / m5DiscCap);
+            const discActual = (qBioReq * 1000) / m5DiscSel;
+
+            const qMixBase = m5Kmix * (m2Vsel + m7DisVsel + m8Vsel);
+            const qMixReq = qMixBase * m5SfMix;
+            const blowerMixSel = Math.ceil(qMixReq * 10) / 10;
+
+            const tknAlk = Math.max(0, TNI - 10);
+            const NaDN = Math.ceil(Math.max(0, ((((0.8 * tknAlk * 7.14) - (TNI * 3.57) / (1 + Rn_sel / 100)) * Q_day * 1e-3) * 40 / 50)) * 10) / 10;
+
+            document.getElementById('m5-bio-badge').innerText = qBioReq.toFixed(2);
+            document.getElementById('m5-mix-badge').innerText = qMixReq.toFixed(2);
+            document.getElementById('m5-w4').innerText = W4.toFixed(2);
+            document.getElementById('m5-w5').innerText = W5.toFixed(2);
+            document.getElementById('m5-w6').innerText = W6.toFixed(2);
+            document.getElementById('m5-qas').innerText = QAS.toFixed(2);
+            document.getElementById('m5-qbio-req').innerText = qBioReq.toFixed(2);
+            document.getElementById('m5-blower-bio').innerText = blowerBioSel.toFixed(1);
+            document.getElementById('m5-disc-req').innerText = discReq;
+            document.getElementById('m5-disc-actual').innerText = discActual.toFixed(1);
+            document.getElementById('m5-qmix-base').innerText = qMixBase.toFixed(2);
+            document.getElementById('m5-qmix-req').innerText = `${qMixReq.toFixed(2)} m³/phút`;
+            document.getElementById('m5-blower-mix').innerText = blowerMixSel.toFixed(1);
+            document.getElementById('m5-naoh').innerText = `${NaDN.toFixed(1)} kg/ngày`;
+
+            // =========================================================================
+            // CHECK RT THỰC TẾ SAU KHI CHỌN THỂ TÍCH / KÍCH THƯỚC CHO 7 BỂ
+            // =========================================================================
+            // 1. Bể gom (Chuẩn: 15 - 30 phút ở lưu lượng đỉnh)
+            const rtSumpPeakMin = (m1Vsel / Math.max(0.05, Q_hr * m1Peak)) * 60;
+            const rtSumpAvgMin = (m1Vsel / Math.max(0.05, Q_hr)) * 60;
+            const evalSump = evaluateRT(rtSumpPeakMin, 15, 30, 'phút');
+            renderRTCheckBox(
+                'rt-check-sumpit',
+                'Check RT thực tế (lưu lượng đỉnh)',
+                rtSumpPeakMin.toFixed(1),
+                'phút',
+                15,
+                30,
+                evalSump,
+                `RT theo Q_hr trung bình = ${rtSumpAvgMin.toFixed(1)} phút`
+            );
+
+            // 2. Bể điều hòa (Chuẩn: 6 - 12 giờ)
+            const rtEqHr = m2Vsel / Math.max(0.05, Q_hr);
+            const evalEq = evaluateRT(rtEqHr, 6, 12, 'giờ');
+            renderRTCheckBox(
+                'rt-check-eq',
+                'Check RT thực tế (V_eq_sel / Q_hr)',
+                rtEqHr.toFixed(2),
+                'giờ',
+                6,
+                12,
+                evalEq
+            );
+
+            // 3. Bể thiếu khí Anoxic (Chuẩn: 6 - 10 giờ)
+            const rtAnoxHr = m3Vsel / Math.max(0.05, Q_hr);
+            const rtAnoxHydHr = m3Vsel / Math.max(0.05, Q_hr * (1 + R + Rn_sel));
+            const evalAnox = evaluateRT(rtAnoxHr, 6, 10, 'giờ');
+            renderRTCheckBox(
+                'rt-check-anoxic',
+                'Check RT thực tế (VD1_sel / Q_hr)',
+                rtAnoxHr.toFixed(2),
+                'giờ',
+                6,
+                10,
+                evalAnox,
+                `RT thủy lực có tuần hoàn (1+R+Rn) = ${rtAnoxHydHr.toFixed(2)} giờ`
+            );
+
+            // 4. Bể hiếu khí Oxic (Chuẩn: 7 - 12 giờ)
+            const rtOxicHr = VN_sel / Math.max(0.05, Q_hr);
+            const evalOxic = evaluateRT(rtOxicHr, 7, 12, 'giờ');
+            renderRTCheckBox(
+                'rt-check-oxic',
+                'Check RT thực tế (VN_sel / Q_hr)',
+                rtOxicHr.toFixed(2),
+                'giờ',
+                7,
+                12,
+                evalOxic
+            );
+
+            // 5. Bể lắng sinh học (Chuẩn: 2 - 4 giờ)
+            const rtSedHr = m6SedVsel / Math.max(0.05, Q_hr);
+            const evalSed = evaluateRT(rtSedHr, 2, 4, 'giờ');
+            renderRTCheckBox(
+                'rt-check-sed',
+                'Check RT vùng lắng (V_sed / Q_hr)',
+                rtSedHr.toFixed(2),
+                'giờ',
+                2,
+                4,
+                evalSed,
+                `Tải bề mặt thực tế LV = ${m6LvActual.toFixed(2)} m/h`
+            );
+
+            // 6. Bể khử trùng & xả thải (Chuẩn: 30 - 50 phút)
+            const rtDisMin = (m7DisVsel / Math.max(0.05, Q_hr)) * 60;
+            const evalDis = evaluateRT(rtDisMin, 30, 50, 'phút');
+            renderRTCheckBox(
+                'rt-check-dis',
+                'Check RT khử trùng',
+                rtDisMin.toFixed(1),
+                'phút',
+                30,
+                50,
+                evalDis
+            );
+
+            // 7. Bể chứa bùn (Chuẩn: 12 - 30 ngày)
+            const rtSludgeDays = m8Vsel / Math.max(0.001, sludgeVol1Pct);
+            const evalSludge = evaluateRT(rtSludgeDays, 12, 30, 'ngày');
+            renderRTCheckBox(
+                'rt-check-sludge',
+                'Check thời gian lưu bùn thực tế (V_sludge_sel / Q_bùn_1%)',
+                rtSludgeDays.toFixed(1),
+                'ngày',
+                12,
+                30,
+                evalSludge
+            );
+
+            // 9.1 Methanol
+            const c91Conc = Math.max(0.5, parseFloat(document.getElementById('c91-conc').value) || 10);
+            const c91Hr = Math.max(1, parseFloat(document.getElementById('c91-hr').value) || 24);
+            const c91Tank = Math.max(10, parseFloat(document.getElementById('c91-tank').value) || 100);
+            const c91Psel = parseFloat(document.getElementById('c91-psel').value) || 77;
+            const c91Vol = CMT_sel / (c91Conc / 100) / 1.0;
+            const c91Pcalc = (c91Vol * 1000) / (c91Hr * 60);
+
+            document.getElementById('c91-kg').innerText = CMT_sel.toFixed(2);
+            document.getElementById('c91-vol').innerText = c91Vol.toFixed(1);
+            document.getElementById('c91-pcalc').innerText = c91Pcalc.toFixed(1);
+
+            // 9.2 NaOH
+            const c92Conc = Math.max(0.5, parseFloat(document.getElementById('c92-conc').value) || 10);
+            const c92Hr = Math.max(1, parseFloat(document.getElementById('c92-hr').value) || 12);
+            const c92Tank = Math.max(10, parseFloat(document.getElementById('c92-tank').value) || 500);
+            const c92Psel = parseFloat(document.getElementById('c92-psel').value) || 430;
+            const c92Vol = NaDN / (c92Conc / 100) / 1.35;
+            const c92Pcalc = (c92Vol * 1000) / (c92Hr * 60);
+
+            document.getElementById('c92-kg').innerText = NaDN.toFixed(2);
+            document.getElementById('c92-vol').innerText = c92Vol.toFixed(1);
+            document.getElementById('c92-pcalc').innerText = c92Pcalc.toFixed(1);
+
+            // 9.3 PAC
+            const c93Dose = Math.max(0, parseFloat(document.getElementById('c93-dose').value) || 1.65);
+            const c93Conc = Math.max(0.5, parseFloat(document.getElementById('c93-conc').value) || 10);
+            const c93Hr = Math.max(1, parseFloat(document.getElementById('c93-hr').value) || 24);
+            const c93Tank = Math.max(10, parseFloat(document.getElementById('c93-tank').value) || 100);
+            const c93Psel = parseFloat(document.getElementById('c93-psel').value) || 77;
+            const c93Kg = Math.max(0, TPI - TPO) * Q_day * c93Dose / 1000;
+            const c93Vol = c93Kg / (c93Conc / 100) / 1.0;
+            const c93Pcalc = (c93Vol * 1000) / (c93Hr * 60);
+
+            document.getElementById('c93-kg').innerText = c93Kg.toFixed(2);
+            document.getElementById('c93-vol').innerText = c93Vol.toFixed(1);
+            document.getElementById('c93-pcalc').innerText = c93Pcalc.toFixed(1);
+
+            // 9.4 NaOCl (Giảm Coliform)
+            const c94Dose = Math.max(0, parseFloat(document.getElementById('c94-dose').value) || 5.0);
+            const c94Conc = Math.max(0.5, parseFloat(document.getElementById('c94-conc').value) || 10);
+            const c94Dens = Math.max(0.5, parseFloat(document.getElementById('c94-dens').value) || 1.15);
+            const c94Hr = Math.max(1, parseFloat(document.getElementById('c94-hr').value) || 24);
+            const c94Tank = Math.max(10, parseFloat(document.getElementById('c94-tank').value) || 100);
+            const c94Psel = parseFloat(document.getElementById('c94-psel').value) || 15;
+
+            const cl2KgDay = Q_day * c94Dose / 1000;
+            const naoclKgDay = cl2KgDay / (c94Conc / 100);
+            const naoclLDay = naoclKgDay / c94Dens;
+            const c94Pcalc = Math.ceil((naoclLDay * 1000) / (c94Hr * 60));
+            const refillDays = naoclLDay > 0 ? (c94Tank / naoclLDay) : 999;
+
+            document.getElementById('c94-col-in').innerText = colIn > 0 ? colIn.toLocaleString('vi-VN') : '-';
+            document.getElementById('c94-col-out').innerText = colOut > 0 ? colOut.toLocaleString('vi-VN') : (colStd || '-');
+            document.getElementById('c94-qday').innerText = Q_day.toFixed(1);
+            document.getElementById('c94-cl2-kg').innerText = `${cl2KgDay.toFixed(3)} kg/ng`;
+            document.getElementById('c94-naocl-l').innerText = `${naoclLDay.toFixed(2)} L/ng`;
+            document.getElementById('c94-naocl-kg').innerText = naoclKgDay.toFixed(2);
+            document.getElementById('c94-pcalc').innerText = `${c94Pcalc} mL/phút`;
+            document.getElementById('c94-tank-disp').innerText = c94Tank;
+            document.getElementById('c94-refill').innerText = `${refillDays.toFixed(1)} ngày`;
+
+            // Cập nhật 4 KPI tổng quan
+            const totalTankVol = m1Vsel + m2Vsel + m3Vsel + VN_sel + m6SedVsel + m7DisVsel + m8Vsel;
+            document.getElementById('kpi-q-day').innerText = Q_day.toFixed(1);
+            document.getElementById('kpi-q-hr').innerText = Q_hr.toFixed(1);
+            document.getElementById('kpi-anoxic-oxic').innerText = `${m3Vsel.toFixed(1)} / ${VN_sel.toFixed(1)}`;
+            document.getElementById('kpi-total-vol').innerText = totalTankVol.toFixed(1);
+            document.getElementById('kpi-air-both').innerText = `${qBioReq.toFixed(2)} / ${qMixReq.toFixed(2)}`;
+            document.getElementById('kpi-chem-me').innerText = CMT_sel.toFixed(1);
+            document.getElementById('kpi-chem-na').innerText = NaDN.toFixed(1);
+            document.getElementById('kpi-chem-pac').innerText = c93Kg.toFixed(1);
+            document.getElementById('kpi-chem-naocl').innerText = cl2KgDay.toFixed(2);
+
+            // Render Bảng Kích thước xây dựng các bể (kèm Check RT thực tế & Đánh giá)
+            const volMap = {
+                sumpit: m1Vsel,
+                eq: m2Vsel,
+                anoxic: m3Vsel,
+                oxic: VN_sel,
+                sed: m6SedVsel,
+                dis: m7DisVsel,
+                sludge: m8Vsel
+            };
+
+            const rtSummaryMap = {
+                sumpit: { text: `${rtSumpPeakMin.toFixed(1)} p`, std: '15–30p', evalObj: evalSump },
+                eq:     { text: `${rtEqHr.toFixed(2)} h`, std: '6–12h', evalObj: evalEq },
+                anoxic: { text: `${rtAnoxHr.toFixed(2)} h`, std: '6–10h', evalObj: evalAnox },
+                oxic:   { text: `${rtOxicHr.toFixed(2)} h`, std: '7–12h', evalObj: evalOxic },
+                sed:    { text: `${rtSedHr.toFixed(2)} h`, std: '2–4h', evalObj: evalSed },
+                dis:    { text: `${rtDisMin.toFixed(1)} p`, std: '30–50p', evalObj: evalDis },
+                sludge: { text: `${rtSludgeDays.toFixed(1)} ng`, std: '12–30ng', evalObj: evalSludge }
+            };
+
+            document.getElementById('summary-tanks-tbody').innerHTML = tankDimConfig.map(t => {
+                const v = volMap[t.id] || 1;
+                const hTot = t.hEff + t.hFb;
+                const area = t.id === 'sed' ? (t.width * t.width) : (v / t.hEff);
+                const len = t.id === 'sed' ? t.width : (area / t.width);
+                const rtInfo = rtSummaryMap[t.id];
+                return `
+                    <tr class="hover:bg-slate-50">
+                        <td class="py-1.5 px-2.5 font-semibold text-slate-800">${t.name}</td>
+                        <td class="py-1.5 px-1.5 text-right font-bold text-sky-700 bg-sky-50/40">${v.toFixed(1)}</td>
+                        <td class="py-1.5 px-1.5 text-right bg-amber-50/30">
+                            <input type="number" value="${t.hEff}" min="0.5" max="10" step="0.1" onchange="updateTankDim('${t.id}', 'hEff', this.value)" class="w-12 px-1 py-0.5 text-right border border-amber-300 rounded bg-white font-semibold">
+                        </td>
+                        <td class="py-1.5 px-1.5 text-right bg-amber-50/30">
+                            <input type="number" value="${t.hFb}" min="0.2" max="2" step="0.1" onchange="updateTankDim('${t.id}', 'hFb', this.value)" class="w-12 px-1 py-0.5 text-right border border-amber-300 rounded bg-white font-semibold">
+                        </td>
+                        <td class="py-1.5 px-1.5 text-right font-semibold text-slate-800">${hTot.toFixed(1)}</td>
+                        <td class="py-1.5 px-1.5 text-right text-slate-700">${area.toFixed(2)}</td>
+                        <td class="py-1.5 px-1.5 text-right bg-amber-50/30">
+                            <input type="number" value="${t.width}" min="0.5" max="20" step="0.1" onchange="updateTankDim('${t.id}', 'width', this.value)" class="w-12 px-1 py-0.5 text-right border border-amber-300 rounded bg-white font-semibold">
+                        </td>
+                        <td class="py-1.5 px-1.5 text-right font-semibold text-slate-800">${len.toFixed(2)}</td>
+                        <td class="py-1.5 px-2 text-center font-mono font-bold text-emerald-800 bg-emerald-50/40">
+                            ${len.toFixed(1)} × ${t.width.toFixed(1)} × ${hTot.toFixed(1)} m
+                        </td>
+                        <td class="py-1.5 px-2 text-center bg-indigo-50/30">
+                            <div class="font-mono font-bold text-slate-800 text-[11px]">${rtInfo.text} <span class="font-normal text-slate-500">(${rtInfo.std})</span></div>
+                            <span class="inline-block mt-0.5 px-1.5 py-0.2 rounded border text-[10px] font-bold ${rtInfo.evalObj.tableBadgeClass}">
+                                ${rtInfo.evalObj.status}
+                            </span>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+
+            // Render Bảng Tổng hợp thiết bị chính
+            const equipList = [
+                { name: 'Bơm chìm nước thải bể gom', loc: 'Bể gom (Sumpit)', spec: `Q = ${m1QpumpSel.toFixed(1)} m³/giờ, H = 6 – 8 mH₂O`, qty: '02 bơm (1 chạy, 1 dự phòng)' },
+                { name: 'Bơm điều hòa lưu lượng', loc: 'Bể điều hòa', spec: `Q = ${Q_hr.toFixed(1)} m³/giờ, H = 6 mH₂O`, qty: '02 bơm (1 chạy, 1 dự phòng)' },
+                { name: 'Bơm tuần hoàn nội bộ (IR)', loc: 'Oxic → Anoxic', spec: `Q = ${(Rn_sel * Q_hr).toFixed(2)} m³/giờ (Rn = ${Rn_sel.toFixed(1)}), H = 4 – 5 mH₂O`, qty: '02 bơm (1 chạy, 1 dự phòng)' },
+                { name: 'Bơm tuần hoàn & xả bùn dư (RAS/WAS)', loc: 'Bể lắng sinh học', spec: `Q = ${(R * Q_hr).toFixed(2)} m³/giờ (R = ${R.toFixed(1)}), H = 6 – 8 mH₂O`, qty: '02 bơm (1 chạy, 1 dự phòng)' },
+                { name: 'Máy thổi khí SINH HỌC (Tách riêng)', loc: 'Bể hiếu khí (Oxic)', spec: `Q = ${blowerBioSel.toFixed(1)} m³/phút (Yêu cầu ${qBioReq.toFixed(2)} m³/p), H = 3000 mmH₂O`, qty: '02 máy (1 chạy, 1 dự phòng)' },
+                { name: 'Máy thổi khí KHUẤY TRỘN (Tách riêng)', loc: 'Điều hòa, Khử trùng, Bể bùn', spec: `Q = ${blowerMixSel.toFixed(1)} m³/phút (Yêu cầu ${qMixReq.toFixed(2)} m³/p), H = 3000 mmH₂O`, qty: '02 máy (1 chạy, 1 dự phòng)' },
+                { name: 'Đĩa phân phối khí tinh (SSI)', loc: 'Bể hiếu khí (Oxic)', spec: `Lưu lượng ${discActual.toFixed(1)} L/phút/đĩa (Định mức ${m5DiscCap} L/p/đĩa)`, qty: `${m5DiscSel} đĩa` },
+                { name: 'Cụm bồn & bơm định lượng Methanol 10%', loc: 'Bể thiếu khí (Anoxic)', spec: `Bồn PE ${c91Tank} L + Bơm ĐL ${c91Psel} mL/phút (${CMT_sel.toFixed(1)} kg/ng)`, qty: '01 cụm' },
+                { name: 'Cụm bồn & bơm định lượng NaOH 10%', loc: 'Bể hiếu khí (Oxic)', spec: `Bồn PE ${c92Tank} L + Bơm ĐL ${c92Psel} mL/phút (${NaDN.toFixed(1)} kg/ng)`, qty: '01 cụm' },
+                { name: 'Cụm bồn & bơm định lượng PAC 10%', loc: 'Xử lý Phốt pho (T-P)', spec: `Bồn PE ${c93Tank} L + Bơm ĐL ${c93Psel} mL/phút (${c93Kg.toFixed(2)} kg/ng)`, qty: '01 cụm' },
+                { name: 'Cụm bồn & bơm định lượng NaOCl (Giảm Coliform)', loc: 'Bể khử trùng & xả thải', spec: `Bồn PE ${c94Tank} L + Bơm ĐL ${c94Psel} mL/phút (Liều ${c94Dose} mg Cl₂/L; ${naoclLDay.toFixed(2)} L/ng)`, qty: '01 cụm' }
+            ];
+
+            document.getElementById('summary-equip-tbody').innerHTML = equipList.map((eq, idx) => `
+                <tr class="hover:bg-slate-50">
+                    <td class="py-1.5 px-2.5 text-center font-medium text-slate-500">${idx + 1}</td>
+                    <td class="py-1.5 px-2.5 font-semibold text-slate-800">${eq.name}</td>
+                    <td class="py-1.5 px-2.5 text-slate-600">${eq.loc}</td>
+                    <td class="py-1.5 px-2.5 text-slate-700">${eq.spec}</td>
+                    <td class="py-1.5 px-2 text-center font-semibold text-sky-800">${eq.qty}</td>
+                </tr>
+            `).join('');
+        }
+
+        window.onload = function () {
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('meta-date').value = today;
+            initWaterQualityTable();
+            recalcAll();
+        };
+    </script>
+</body>
+</html>
